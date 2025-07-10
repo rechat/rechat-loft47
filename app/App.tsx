@@ -1,6 +1,7 @@
 import Ui from '@libs/material-ui'
 import React from '@libs/react'
 import ReactUse from '@libs/react-use'
+import DealContextList from './components/DealContextList'
 
 function FormattedCurrency({ amount }: { amount: number }) {
   const formatted = new Intl.NumberFormat('en-US', {
@@ -35,9 +36,6 @@ export function App({
   hooks
 }: EntryProps) {
   ReactUse.useDebounce(() => {}, 1000, [])
-  console.log(deal)
-  console.log(roles)
-  console.log(user)
 
   const DealContexts = [
     {
@@ -100,36 +98,11 @@ export function App({
   return (
     <Ui.Grid container spacing={2}>
       <Ui.Grid item xs={12} md={12} lg={12}>
-        {DealContexts.map(context => (
-          <Ui.Grid
-            key={context.id}
-            container
-            direction="row"
-            alignItems="center"
-            spacing={1}
-          >
-            <Ui.Grid item>
-              <Ui.Typography variant="body2">{context.label}: </Ui.Typography>
-            </Ui.Grid>
-            <Ui.Grid item>
-              {context.id.includes('price') ? (
-                <FormattedCurrency
-                  amount={
-                    getDealContext(context.id)?.[
-                      context.type as keyof typeof getDealContext
-                    ] || 'N/A'
-                  }
-                />
-              ) : (
-                <Ui.Typography variant="subtitle1">
-                  {getDealContext(context.id)?.[
-                    context.type as keyof typeof getDealContext
-                  ] || 'N/A'}
-                </Ui.Typography>
-              )}
-            </Ui.Grid>
-          </Ui.Grid>
-        ))}
+        <DealContextList
+          contexts={DealContexts}
+          getDealContext={getDealContext}
+        />
+        
       </Ui.Grid>
       <Ui.Grid item container xs={12} spacing={2} direction="row">
         <Ui.Grid item>
