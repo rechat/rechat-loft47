@@ -10,7 +10,7 @@ import {
   updateBrokerage, 
   deleteBrokerage 
 } from './app/controllers/loft47/brokerages'
-import { listDeals, showDeal, addDeal, testDB } from './app/controllers/loft47/deals'
+import { listDeals, showDeal, addDeal, testDB, showDealByDealId, showDealByLoft47Id } from './app/controllers/loft47/deals'
 
 const router = express.Router()
 
@@ -31,12 +31,17 @@ router.route('/loft47/brokerages/:id')
   .get(getBrokerage)
   .patch(updateBrokerage)
   .delete(deleteBrokerage)
-    
+
+// Deals routes
 router.route('/loft47/deals')
-  .get(listDeals)
-  .post(addDeal)
+  .get(listDeals)   // list all deals
+  .post(addDeal)    // create new deal
 
+// lookup routes (define BEFORE generic :id to avoid shadowing)
+router.get('/loft47/deals/loft47/:id', showDealByLoft47Id) // by loft47_id
+router.get('/loft47/deals/deal/:id', showDealByDealId)     // by deal_id
+
+// generic lookup by primary id (uuid)
 router.get('/loft47/deals/:id', showDeal)
-
 
 export default router

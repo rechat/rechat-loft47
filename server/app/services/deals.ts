@@ -15,6 +15,16 @@ export async function getDealById(id: string) {
   return rows[0]
 }
 
+export async function getDealByLoft47Id(loft47Id: string) {
+  const { rows } = await query('SELECT * FROM deals WHERE loft47_id = $1', [loft47Id])
+  return rows[0]
+}
+
+export async function getDealByDealId(dealId: string) {
+  const { rows } = await query('SELECT * FROM deals WHERE deal_id = $1', [dealId])
+  return rows[0]
+}
+
 export async function createDeal(dealId: string, loft47Id: string) {
   const { rows } = await query(
     'INSERT INTO deals (deal_id, loft47_id) VALUES ($1, $2) RETURNING *',
