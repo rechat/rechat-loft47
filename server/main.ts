@@ -22,24 +22,37 @@ const isDevelopment = !isProduction
 const app = express()
 const port = process.env.PORT || 8081
 
+app.use(compress())
+
+// app.use(cors())
+
 // Parse incoming JSON bodies
 app.use(express.json())
 
-// Session middleware (required for storing Loft47 auth token)
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'change_this_secret',
-    resave: false,
-    saveUninitialized: false
-  })
-)
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:8081',
+  credentials: true
+}));
 
-app.use(compress())
+app.use(express.json());
 
-app.use(cors())
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'change_this_secret',
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // true if using HTTPS
+    sameSite: 'lax'
+  }
+}));
+
 
 app.use(routes)
 app.use(haltOnTimedout)
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.originalUrl}`);
+  next();
+});
 
 if (isDevelopment) {
   const config = require('../webpack.config').default
