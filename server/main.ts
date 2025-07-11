@@ -9,6 +9,10 @@ import serveStatic from 'serve-static'
 import throng from 'throng'
 import webpack from 'webpack'
 import webpackDevMiddleware from 'webpack-dev-middleware'
+import session from 'express-session'
+import dotenv from 'dotenv'
+
+dotenv.config()
 
 import routes from './routes'
 
@@ -18,22 +22,21 @@ const isDevelopment = !isProduction
 const app = express()
 const port = process.env.PORT || 8081
 
+// Parse incoming JSON bodies
+app.use(express.json())
+
+// Session middleware (required for storing Loft47 auth token)
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'change_this_secret',
+    resave: false,
+    saveUninitialized: false
+  })
+)
+
 app.use(compress())
 
-app.use(
-  cors(
-    (
-      req: Request,
-      callback: (err: Error | null, options?: CorsOptions) => void
-    ) => {
-      callback(null, {
-        origin:
-          /bundle\.\d+\.js|bundle.js\?v=\w+/.test(req.originalUrl) ||
-          req.originalUrl.endsWith('.json')
-      })
-    }
-  )
-)
+app.use(cors())
 
 app.use(routes)
 app.use(haltOnTimedout)
