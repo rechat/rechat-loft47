@@ -2,6 +2,11 @@ import Ui from '@libs/material-ui'
 import React from '@libs/react'
 import ReactUse from '@libs/react-use'
 import DealContextList from './components/DealContextList'
+import { AuthService } from './service/AuthService'
+import { BrokeragesService } from './service/BrokeragesService'
+
+// Ensures sign-in happens only once even if the component remounts in development (e.g. React-StrictMode)
+let didSignInGlobal = false;
 
 function FormattedCurrency({ amount }: { amount: number }) {
   const formatted = new Intl.NumberFormat('en-US', {
@@ -36,6 +41,28 @@ export function App({
   hooks
 }: EntryProps) {
   ReactUse.useDebounce(() => {}, 1000, [])
+  const signInOnce = async () => {
+    const authData = await AuthService.signIn(
+      process.env.LOFT47_EMAIL_1 || '', 
+      process.env.LOFT47_PASSWORD_1 || '')
+    console.log('authData', authData)
+  }
+
+  const retrieveBrokerages = async () => {
+    const brokeragesData = await BrokeragesService.retrieveBrokerages()
+    console.log('brokeragesData', brokeragesData)
+  }
+
+  React.useEffect(() => {
+    // immediately-invoked async helper
+    (async () => {
+      console.log('didSignInGlobal', didSignInGlobal)
+      if (didSignInGlobal) return
+      didSignInGlobal = true
+      await signInOnce()
+      // await retrieveBrokerages()
+    })()
+  }, [])
 
   const DealContexts = [
     {
@@ -106,7 +133,7 @@ export function App({
       </Ui.Grid>
       <Ui.Grid item container xs={12} spacing={2} direction="row">
         <Ui.Grid item>
-          <Ui.Button variant="contained" color="primary" onClick={close}>
+          <Ui.Button variant="contained" color="primary" onClick={retrieveBrokerages}>
             Sync with Loft47
           </Ui.Button>
         </Ui.Grid>
