@@ -4,6 +4,7 @@ import homeRoute from './app/controllers/home'
 import manifestRoute from './app/controllers/manifest'
 import { signIn } from './app/controllers/loft47/auth'
 import { retrieveBrokerages } from './app/controllers/loft47/brokerages'
+import { listDeals, showDeal, addDeal, testDB } from './app/controllers/loft47/deals'
 
 const router = express.Router()
 
@@ -18,5 +19,12 @@ router.post('/loft47/sign_in', signIn)
 
 router.route('/loft47/brokerages')
   .get(retrieveBrokerages)
+
+router.route('/loft47/deals')
+  .get(listDeals)
+  .post(addDeal)
+
+router.get('/loft47/deals/:id', showDeal)
+
 
 export default router
