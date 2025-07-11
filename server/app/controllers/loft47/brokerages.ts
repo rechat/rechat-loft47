@@ -1,31 +1,15 @@
 import { Request, Response } from 'express'
-import axios from 'axios'
 
-import 'express-session'        // keep this line
-
-declare module 'express-session' {
-  interface SessionData {
-    token?: string;             // <-- custom field
-  }
-}
+import api from '../../api';
 
 export async function retrieveBrokerages(req: Request, res: Response) {
-
   try {
-    const API_URL = process.env.STAGING_LOFT47_API_URL
-    // Make request to external API
-    const response = await axios.get(API_URL + '/brokerages',
-      {
-        headers: {
-          'authorization': req.session.token
-        }
-      }
-    );
-
+    const response = await api.get('/brokerages');
+    console.log('retrieveBrokerages / authorization:', response.headers['authorization']);
     return res.status(response.status).json(response.data);
 
   } catch (error) {
-    console.error('Error logging in:', error.message);
+    console.error('Error in retrieveBrokerages:', error.message);
 
     // Forward error from backend or a fallback message
     if (error.response) {

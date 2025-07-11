@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import axios from 'axios'
+import api, { setBearerToken } from '../../api'
 
 import 'express-session'        // keep this line
 
@@ -13,9 +13,8 @@ export async function signIn(req: Request, res: Response) {
   const { user } = req.body || {}
 
   try {
-    const API_URL = process.env.STAGING_LOFT47_API_URL
     // Make request to external API
-    const response = await axios.post(API_URL + '/sign_in', 
+    const response = await api.post('/sign_in', 
       {
         user
       },
@@ -26,10 +25,13 @@ export async function signIn(req: Request, res: Response) {
       }
     );
 
-    // Forward response data back to client
-    req.session.token = response.headers['authorization'];
-    await new Promise(r => req.session.save(r))
+    const authHeader = response.headers['authorization'];
+    let token: string | null = null;
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
 
+    setBearerToken(token as string);
     return res.status(response.status).json(response.data);
 
   } catch (error) {
