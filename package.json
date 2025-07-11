@@ -14,7 +14,9 @@
     "build:web": "NODE_ENV=production node -r ts-node/register ./.configuration/build/index.ts",
     "build:server": "rimraf dist-server && cross-env NODE_ENV=production tsc -p server/tsconfig.production.json",
     "start": "NODE_ENV=production node dist-server/server/main.js",
-    "deploy": "gcloud run deploy"
+    "deploy": "gcloud run deploy",
+    "migrate": "npx knex migrate:latest",
+    "seed": "npx knex seed:run"
   },
   "dependencies": {
     "@material-ui/core": "^4.12.4",
@@ -27,6 +29,7 @@
     "express-session": "^1.18.1",
     "express-sslify": "^1.2.0",
     "fontsource-roboto": "^4.0.0",
+    "knex": "^3.1.0",
     "pg": "^8.16.3",
     "react": "^18.1.0",
     "react-dom": "^18.1.0",
