@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import api, { setBearerToken } from '../../api'
+import api from '../../api'
 
 import 'express-session'        // keep this line
 
@@ -8,6 +8,23 @@ declare module 'express-session' {
     token?: string;
   }
 }
+
+let bearerToken: string | null = null;
+
+// Add a request interceptor
+api.interceptors.request.use(
+  (config) => {
+    if (bearerToken) {
+      config.headers.Authorization = bearerToken;
+      config.headers.Accept = 'application/vnd.api+json';
+    }
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 export async function signIn(req: Request, res: Response) {
   const { user } = req.body || {}
@@ -25,13 +42,8 @@ export async function signIn(req: Request, res: Response) {
       }
     );
 
-    const authHeader = response.headers['authorization'];
-    let token: string | null = null;
-    if (authHeader?.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
-    }
+    bearerToken = response.headers['authorization'];
 
-    setBearerToken(token as string);
     return res.status(response.status).json(response.data);
 
   } catch (error) {

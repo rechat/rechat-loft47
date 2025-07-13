@@ -10,7 +10,14 @@ import {
   updateBrokerage, 
   deleteBrokerage 
 } from './app/controllers/loft47/brokerages'
-import { listDeals, showDeal, addDeal, testDB, showDealByDealId, showDealByLoft47Id } from './app/controllers/loft47/deals'
+import { 
+  listDeals, 
+  showDeal, 
+  addDeal, 
+  showDealByDealId, 
+  showDealByLoft47Id 
+} from './app/controllers/loft47/deals'
+import { getBrokerageDeals } from './app/controllers/loft47/brokerage_deals'
 
 const router = express.Router()
 
@@ -31,6 +38,9 @@ router.route('/loft47/brokerages/:id')
   .get(getBrokerage)
   .patch(updateBrokerage)
   .delete(deleteBrokerage)
+
+router.route('/loft47/brokerages/:brokerage_id/deals')
+  .get(getBrokerageDeals)
 
 // Deals routes
 router.route('/loft47/deals')
