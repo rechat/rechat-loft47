@@ -8,10 +8,9 @@ export const BrokeragesService = {
   retrieveBrokerages: async () => {
     try {
       const res = await fetch(process.env.SITE_URL + '/loft47/brokerages', {
-        method: 'GET',
-        credentials: 'include'
+        method: 'GET'
       })
-      console.log('retrieveBrokerages / res:', res)
+
       const data = res.json()
       return data
     } catch (err) {

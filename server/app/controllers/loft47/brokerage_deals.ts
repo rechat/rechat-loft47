@@ -9,7 +9,17 @@ export async function getBrokerageDeals(req: Request, res: Response) {
     const response = await api.get(`/brokerages/${brokerage_id}/deals`);
     return res.status(response.status).json(response.data);
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: 'Internal server error' })
+    res.status(500).json({ error: 'getBrokerageDeals error:' + err })
+  }
+}
+
+export async function getBrokerageDeal(req: Request, res: Response) {
+  try {
+    const { brokerage_id, deal_id } = req.params
+    console.log('getBrokerageDeal:', brokerage_id, deal_id)
+    const response = await api.get(`/brokerages/${brokerage_id}/deals/${deal_id}`);
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: 'getBrokerageDeal error:' + err })
   }
 }

@@ -17,7 +17,10 @@ import {
   showDealByDealId, 
   showDealByLoft47Id 
 } from './app/controllers/loft47/deals'
-import { getBrokerageDeals } from './app/controllers/loft47/brokerage_deals'
+import { 
+  getBrokerageDeals, 
+  getBrokerageDeal
+} from './app/controllers/loft47/brokerage_deals'
 
 const router = express.Router()
 
@@ -41,6 +44,9 @@ router.route('/loft47/brokerages/:id')
 
 router.route('/loft47/brokerages/:brokerage_id/deals')
   .get(getBrokerageDeals)
+
+router.route('/loft47/brokerages/:brokerage_id/deals/:deal_id')
+  .get(getBrokerageDeal)
 
 // Deals routes
 router.route('/loft47/deals')
