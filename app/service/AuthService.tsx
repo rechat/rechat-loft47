@@ -20,7 +20,6 @@ export const AuthService = {
           }
         })
       })
-      console.log('signIn res:', res)
       const data = res.json()
       return data
     } catch (err) {

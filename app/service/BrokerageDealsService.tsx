@@ -34,14 +34,7 @@ export const BrokerageDealsService = {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          data: {
-            type: deal.deal_type,
-            attributes: {
-              ...deal
-            }
-          }
-        })
+        body: JSON.stringify(deal)
       })
       const data = res.json()
       return data
@@ -57,14 +50,7 @@ export const BrokerageDealsService = {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          data: {
-            type: deal.deal_type,
-            attributes: {
-              ...deal
-            }
-          }
-        })
+        body: JSON.stringify(deal)
       })
       const data = res.json()
       return data
