@@ -184,7 +184,7 @@ export function App({
       console.log('newLoft47Deal', newLoft47Deal)
 
       if (newLoft47Deal.error) {
-        setMessage('Create deal on Loft47 failed!')
+        setMessage('Create deal in Loft47 failed!')
       } else {
         const mapping = await DealsMappingService.createMapping(RechatDeal.id, newLoft47Deal.data.id)
         if (!mapping.error) {
@@ -221,7 +221,7 @@ export function App({
     const updatedLoft47Deal = await BrokerageDealsService.updateDeal(Loft47Brokerages[0].id ?? '', loft47DealId, tempRechatDeal)
     console.log('updatedLoft47Deal', updatedLoft47Deal);
     if (updatedLoft47Deal.error) {
-      setMessage('Error updating deal on Loft47: ' + updatedLoft47Deal.error)
+      setMessage('Error updating deal in Loft47: ' + updatedLoft47Deal.error)
       showMessage()
       return
     }
@@ -247,11 +247,11 @@ export function App({
     console.log('mapping', mapping)
     
     if (!mapping.error) {
-      setMessage('RechatDealId:' + RechatDeal?.id + ' exists in Loft47. Updating deal on Loft47...')
+      setMessage('Rechat Deal(' + RechatDeal?.id + ') exists in Loft47. Updating deal in Loft47...')
       showMessage()
       await updateMapping(mapping.loft47_deal_id)
     } else {
-      setMessage('RechatDealId:' + RechatDeal?.id + ' does not exist in Loft47. Creating deal on Loft47...')
+      setMessage('Rechat Deal(' + RechatDeal?.id + ') does not exist in Loft47. Creating deal in Loft47...')
       showMessage()
       await createMapping()
     }
