@@ -7,6 +7,7 @@ import { BrokeragesService } from './service/BrokeragesService'
 import { BrokerageDealsService } from './service/BrokerageDealsService'
 import { DealsMappingService } from './service/DealsMappingService'
 import { BrokerageProfilesService } from './service/BrokerageProfilesService'
+import { usePersistentState } from './hooks/usePersistentState'
 
 // Ensures sign-in happens only once even if the component remounts in development (e.g. React-StrictMode)
 let didSignInGlobal = false;
@@ -209,11 +210,11 @@ export function App({
     }
   ]
 
-  const [selectedDealType, setSelectedDealType] = React.useState<string>('')
-  const [selectedDealSubType, setSelectedDealSubType] = React.useState<string>('')
-  const [selectedLeadSource, setSelectedLeadSource] = React.useState<string>('')
-  const [selectedPropertyType, setSelectedPropertyType] = React.useState<string>('')
-  const [selectedSaleStatus, setSelectedSaleStatus] = React.useState<string>('')
+  const [selectedDealType,      setSelectedDealType]      = usePersistentState('dealType',      '')
+  const [selectedDealSubType,   setSelectedDealSubType]   = usePersistentState('dealSubType',   '')
+  const [selectedLeadSource,    setSelectedLeadSource]    = usePersistentState('leadSource',    '')
+  const [selectedPropertyType,  setSelectedPropertyType]  = usePersistentState('propertyType',  '')
+  const [selectedSaleStatus,    setSelectedSaleStatus]    = usePersistentState('saleStatus',    '')
 
   const handleDealTypeChange = (event: React.ChangeEvent<{ value: unknown }>) => {
     setSelectedDealType(event.target.value as string)
@@ -236,7 +237,7 @@ export function App({
   const [loft47Profile, setLoft47Profile] = React.useState<any>(null)
 
   const signInOnce = async () => {
-    const authData = await AuthService.signIn(
+    await AuthService.signIn(
       process.env.LOFT47_EMAIL_1 || '', 
       process.env.LOFT47_PASSWORD_1 || '')
     setRechatDeal(deal)
@@ -431,99 +432,89 @@ export function App({
         />
         
       </Ui.Grid>
+      {/* Deal Type */}
       <Ui.Grid item xs={12} md={12} lg={12}>
-        <Ui.FormControl style={{ width: '20%', marginBottom: '10px' }}>
-          <Ui.InputLabel id="demo-simple-select-autowidth-label">Deal Type</Ui.InputLabel>
-          <Ui.Select
-            labelId="demo-simple-select-autowidth-label"
-            id="demo-simple-select-autowidth"
+        <Ui.FormControl style={{ width: '100%', marginBottom: '10px' }}>
+          <Ui.FormLabel id="demo-row-radio-buttons-group-label">Deal Type</Ui.FormLabel>
+          <Ui.RadioGroup
+            row
+            aria-labelledby="demo-row-radio-buttons-group-label"
+            name="row-radio-buttons-group"
             value={selectedDealType}
             onChange={handleDealTypeChange}
-            autoWidth
-            label="Deal Type"
           >
             {dealTypes.map((dealType) => (
-              <Ui.MenuItem key={dealType.id} value={dealType.id}>
-                {dealType.label}
-              </Ui.MenuItem>
+              <Ui.FormControlLabel key={dealType.id} value={dealType.id} control={<Ui.Radio />} label={dealType.label} />
             ))}
-          </Ui.Select>
+          </Ui.RadioGroup>
         </Ui.FormControl>
       </Ui.Grid>
+      {/* Deal Sub Type */}
       <Ui.Grid item xs={12} md={12} lg={12}>
-        <Ui.FormControl style={{ width: '20%', marginBottom: '10px' }}>
-          <Ui.InputLabel id="demo-simple-select-autowidth-label">Deal Sub Type</Ui.InputLabel>
-          <Ui.Select
-            labelId="demo-simple-select-autowidth-label"
-            id="demo-simple-select-autowidth"
+        <Ui.FormControl style={{ width: '100%', marginBottom: '10px' }}>
+          <Ui.FormLabel id="demo-row-radio-buttons-group-label">Deal Sub Type</Ui.FormLabel>
+          <Ui.RadioGroup
+            row
+            aria-labelledby="demo-row-radio-buttons-group-label"
+            name="row-radio-buttons-group"
             value={selectedDealSubType}
             onChange={handleDealSubTypeChange}
-            autoWidth
-            label="Deal Sub Type"
           >
             {dealSubTypes.map((dealSubType) => (
-              <Ui.MenuItem key={dealSubType.id} value={dealSubType.id}>
-                {dealSubType.label}
-              </Ui.MenuItem>
+              <Ui.FormControlLabel key={dealSubType.id} value={dealSubType.id} control={<Ui.Radio />} label={dealSubType.label} />
             ))}
-          </Ui.Select>
+          </Ui.RadioGroup>
         </Ui.FormControl>
       </Ui.Grid>
+      {/* Lead Source */}
       <Ui.Grid item xs={12} md={12} lg={12}>
-        <Ui.FormControl style={{ width: '20%', marginBottom: '10px' }}>
-          <Ui.InputLabel id="demo-simple-select-autowidth-label">Lead Source</Ui.InputLabel>
-          <Ui.Select
-            labelId="demo-simple-select-autowidth-label"
-            id="demo-simple-select-autowidth"
+        <Ui.FormControl style={{ width: '100%', marginBottom: '10px' }}>
+          <Ui.FormLabel id="demo-row-radio-buttons-group-label">Lead Source</Ui.FormLabel>
+          <Ui.RadioGroup
+            row
+            aria-labelledby="demo-row-radio-buttons-group-label"
+            name="row-radio-buttons-group"
             value={selectedLeadSource}
             onChange={handleLeadSourceChange}
-            autoWidth
-            label="Lead Source"
           >
             {leadSources.map((leadSource) => (
-              <Ui.MenuItem key={leadSource.id} value={leadSource.id}>
-                {leadSource.label}
-              </Ui.MenuItem>
+              <Ui.FormControlLabel key={leadSource.id} value={leadSource.id} control={<Ui.Radio />} label={leadSource.label} />
             ))}
-          </Ui.Select>
+          </Ui.RadioGroup>
         </Ui.FormControl>
       </Ui.Grid>
+      {/* Property Type */}
       <Ui.Grid item xs={12} md={12} lg={12}>
-        <Ui.FormControl style={{ width: '20%', marginBottom: '10px' }}>
-          <Ui.InputLabel id="demo-simple-select-autowidth-label">Property Type</Ui.InputLabel>
-          <Ui.Select
-            labelId="demo-simple-select-autowidth-label"
-            id="demo-simple-select-autowidth"
+        <Ui.FormControl style={{ width: '100%', marginBottom: '10px' }}>
+          <Ui.FormLabel id="demo-row-radio-buttons-group-label">Property Type</Ui.FormLabel>
+          <Ui.RadioGroup
+            row
+            aria-labelledby="demo-row-radio-buttons-group-label"
+            name="row-radio-buttons-group"
             value={selectedPropertyType}
             onChange={handlePropertyTypeChange}
-            autoWidth
-            label="Property Type"
           >
             {propertyType.map((propertyType) => (
-              <Ui.MenuItem key={propertyType.id} value={propertyType.id}>
-                {propertyType.label}
-              </Ui.MenuItem>
+              <Ui.FormControlLabel key={propertyType.id} value={propertyType.id} control={<Ui.Radio />} label={propertyType.label} />
             ))}
-          </Ui.Select>
+          </Ui.RadioGroup>
         </Ui.FormControl>
       </Ui.Grid>
+      {/* Sale Status */}
       <Ui.Grid item xs={12} md={12} lg={12}>
-        <Ui.FormControl style={{ width: '20%', marginBottom: '10px' }}>
-        <Ui.InputLabel id="demo-simple-select-autowidth-label">Sale Status</Ui.InputLabel>
-          <Ui.Select
-            labelId="demo-simple-select-autowidth-label"
-            id="demo-simple-select-autowidth"
+        <Ui.FormControl style={{ width: '100%', marginBottom: '10px' }}>
+          <Ui.FormLabel id="demo-row-radio-buttons-group-label">Sale Status</Ui.FormLabel>
+          <Ui.RadioGroup
+            row
+            aria-labelledby="demo-row-radio-buttons-group-label"
+            name="row-radio-buttons-group"
             value={selectedSaleStatus}
             onChange={handleSaleStatusChange}
-            autoWidth
-            label="Sale Status"
           >
             {saleStatus.map((saleStatus) => (
-              <Ui.MenuItem key={saleStatus.id} value={saleStatus.id}>
-                {saleStatus.label}
-              </Ui.MenuItem>
+              <Ui.FormControlLabel key={saleStatus.id} value={saleStatus.id} control={<Ui.Radio />} label={saleStatus.label} />
             ))}
-          </Ui.Select>
+          </Ui.RadioGroup>
         </Ui.FormControl>
       </Ui.Grid>
 
