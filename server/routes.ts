@@ -23,6 +23,7 @@ import {
   createDeal,
   updateBrokerageDeal
 } from './app/controllers/loft47/brokerage_deals'
+import { getBrokerageProfiles } from './app/controllers/loft47/brokerage_profiles'
 
 const router = express.Router()
 
@@ -43,6 +44,9 @@ router.route('/loft47/brokerages/:id')
   .get(getBrokerage)
   .patch(updateBrokerage)
   .delete(deleteBrokerage)
+
+router.route('/loft47/brokerages/:brokerage_id/profiles')
+  .get(getBrokerageProfiles)
 
 router.route('/loft47/brokerages/:brokerage_id/deals')
   .get(getBrokerageDeals)

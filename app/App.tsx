@@ -6,6 +6,7 @@ import { AuthService } from './service/AuthService'
 import { BrokeragesService } from './service/BrokeragesService'
 import { BrokerageDealsService } from './service/BrokerageDealsService'
 import { DealsMappingService } from './service/DealsMappingService'
+import { BrokerageProfilesService } from './service/BrokerageProfilesService'
 
 // Ensures sign-in happens only once even if the component remounts in development (e.g. React-StrictMode)
 let didSignInGlobal = false;
@@ -100,6 +101,7 @@ export function App({
       type: 'text'
     }
   ]
+
   const dealTypes = [
     {
       id: 'standard',
@@ -123,13 +125,115 @@ export function App({
     }
   ]
 
-  const [selectedDealType, setSelectedDealType] = React.useState<string>('')
+  const dealSubTypes = [
+    {
+      id: 'unknown',
+      label: 'Unknown'
+    },
+    {
+      id: 'single_family_home',
+      label: 'Single Family Home' 
+    },
+    {
+      id: 'condo_townhome',
+      label: 'Condo/Townhome'
+    },
+    {
+      id: 'agricultural',
+      label: 'Agricultural'
+    },
+    {
+      id: 'industrial',
+      label: 'Industrial'
+    },
+    {
+      id: 'land',
+      label: 'Land'
+    },
+    {
+      id: 'multi_family',
+      label: 'Multi-Family'
+    },
+    {
+      id: 'office', 
+      label: 'Office'
+    },
+    {
+      id: 'retail',
+      label: 'Retail'
+    }
+  ]
 
-  const handleChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+  const leadSources = [
+    {
+      id: 'company',
+      label: 'Company'
+    },
+    {
+      id: 'agent',
+      label: 'Agent'
+    }
+  ]
+
+  const propertyType = [
+    {
+      id: 'residential',
+      label: 'Residential'
+    },
+    {
+      id: 'commercial',
+      label: 'Commercial'
+    }
+  ]
+
+  const saleStatus = [
+    {
+      id: 'conditional',
+      label: 'Conditional'
+    },
+    {
+      id: 'firm',
+      label: 'Firm'
+    },
+    {
+      id: 'closed',
+      label: 'Closed'
+    },
+    {
+      id: 'collapsed',
+      label: 'Collapsed'
+    },
+    { 
+      id: 'voided',
+      label: 'Voided'
+    }
+  ]
+
+  const [selectedDealType, setSelectedDealType] = React.useState<string>('')
+  const [selectedDealSubType, setSelectedDealSubType] = React.useState<string>('')
+  const [selectedLeadSource, setSelectedLeadSource] = React.useState<string>('')
+  const [selectedPropertyType, setSelectedPropertyType] = React.useState<string>('')
+  const [selectedSaleStatus, setSelectedSaleStatus] = React.useState<string>('')
+
+  const handleDealTypeChange = (event: React.ChangeEvent<{ value: unknown }>) => {
     setSelectedDealType(event.target.value as string)
+  }
+  const handleDealSubTypeChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    setSelectedDealSubType(event.target.value as string)
+  }
+  const handleLeadSourceChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    setSelectedLeadSource(event.target.value as string)
+  }
+  const handlePropertyTypeChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    setSelectedPropertyType(event.target.value as string)
+  }
+  const handleSaleStatusChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    setSelectedSaleStatus(event.target.value as string)
   }
 
   const [isLoading, setIsLoading] = React.useState(false)
+
+  const [loft47Profile, setLoft47Profile] = React.useState<any>(null)
 
   const signInOnce = async () => {
     const authData = await AuthService.signIn(
@@ -141,6 +245,12 @@ export function App({
   const retrieveBrokerages = async () => {
     const brokeragesData = await BrokeragesService.retrieveBrokerages()
     setLoft47Brokerages(brokeragesData?.data ?? [])
+
+    const profilesData = await BrokerageProfilesService.getBrokerageProfiles(brokeragesData.data[0].id ?? '')
+    
+    const profile = profilesData.data.find((profile: any) => profile.attributes.email === user.email)
+    
+    setLoft47Profile({...profile.attributes})
   }
 
   const getBrokerageDeals = async () => {
@@ -158,6 +268,16 @@ export function App({
     }
   }
 
+  const toISOWithOffset = (date: Date) => {
+    const tzOffset = -date.getTimezoneOffset(); // in minutes
+    const sign = tzOffset >= 0 ? '+' : '-';
+    const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0');
+    const hours = pad(tzOffset / 60);
+    const minutes = pad(tzOffset % 60);
+    const iso = date.toISOString().slice(0, -1); // remove 'Z'
+    return `${iso}${sign}${hours}:${minutes}`;
+  }
+
   const createMapping = async () => {
     if (Loft47Brokerages.length > 0 && RechatDeal) {
       const buyer = roles.find(role => role.role === 'Buyer')
@@ -166,11 +286,15 @@ export function App({
       const tempRechatDeal = {
         data: {
           attributes: {
-            ownerId: 7441,
-            // adjustmentAt: RechatDeal?.updated_at,
+            ownerId: loft47Profile.id,
+            adjustmentAt: toISOWithOffset(new Date((RechatDeal?.updated_at ?? 0) * 1000)),
             ...(buyer && { buyerNames: buyer.legal_full_name }),
             ...(getDealContext('closed_at') && { closedAt: getDealContext('closed_at') }),
             dealType: selectedDealType,
+            dealSubType: selectedDealSubType,
+            leadSource: selectedLeadSource,
+            propertyType: selectedPropertyType,
+            saleStatus: selectedSaleStatus,
             ...(getDealContext('lot_number') && { lot: getDealContext('lot_number') }),          
             exclusive: getDealContext('mls_number') ? false : true,
             ...(getDealContext('mls_number') && { mlsNumber: getDealContext('mls_number') }),
@@ -204,11 +328,15 @@ export function App({
     const tempRechatDeal = {
       data: {
         attributes: {
-          ownerId: 7441,
-          // adjustmentAt: RechatDeal?.updated_at,
+          ownerId: loft47Profile.id,
+          adjustmentAt: toISOWithOffset(new Date((RechatDeal?.updated_at ?? 0) * 1000)),
           ...(buyer && { buyerNames: buyer.legal_full_name }),
           ...(getDealContext('closed_at') && { closedAt: getDealContext('closed_at') }),
           dealType: selectedDealType,
+          dealSubType: selectedDealSubType,
+          leadSource: selectedLeadSource,
+          propertyType: selectedPropertyType,
+          saleStatus: selectedSaleStatus,
           ...(getDealContext('lot_number') && { lot: getDealContext('lot_number') }),          
           exclusive: getDealContext('mls_number') ? false : true,
           ...(getDealContext('mls_number') && { mlsNumber: getDealContext('mls_number') }),
@@ -238,6 +366,12 @@ export function App({
 
     if (selectedDealType === '') {
       setMessage('Please select a deal type')
+      showMessage()
+      return
+    }
+
+    if (!loft47Profile) {
+      setMessage('Loft47 profile that corresponds to ' + user.email + ' doesn\'t exist')
       showMessage()
       return
     }
@@ -299,12 +433,12 @@ export function App({
       </Ui.Grid>
       <Ui.Grid item xs={12} md={12} lg={12}>
         <Ui.FormControl style={{ width: '20%', marginBottom: '10px' }}>
-        <Ui.InputLabel id="demo-simple-select-autowidth-label">Deal Type</Ui.InputLabel>
+          <Ui.InputLabel id="demo-simple-select-autowidth-label">Deal Type</Ui.InputLabel>
           <Ui.Select
             labelId="demo-simple-select-autowidth-label"
             id="demo-simple-select-autowidth"
             value={selectedDealType}
-            onChange={handleChange}
+            onChange={handleDealTypeChange}
             autoWidth
             label="Deal Type"
           >
@@ -316,6 +450,83 @@ export function App({
           </Ui.Select>
         </Ui.FormControl>
       </Ui.Grid>
+      <Ui.Grid item xs={12} md={12} lg={12}>
+        <Ui.FormControl style={{ width: '20%', marginBottom: '10px' }}>
+          <Ui.InputLabel id="demo-simple-select-autowidth-label">Deal Sub Type</Ui.InputLabel>
+          <Ui.Select
+            labelId="demo-simple-select-autowidth-label"
+            id="demo-simple-select-autowidth"
+            value={selectedDealSubType}
+            onChange={handleDealSubTypeChange}
+            autoWidth
+            label="Deal Sub Type"
+          >
+            {dealSubTypes.map((dealSubType) => (
+              <Ui.MenuItem key={dealSubType.id} value={dealSubType.id}>
+                {dealSubType.label}
+              </Ui.MenuItem>
+            ))}
+          </Ui.Select>
+        </Ui.FormControl>
+      </Ui.Grid>
+      <Ui.Grid item xs={12} md={12} lg={12}>
+        <Ui.FormControl style={{ width: '20%', marginBottom: '10px' }}>
+          <Ui.InputLabel id="demo-simple-select-autowidth-label">Lead Source</Ui.InputLabel>
+          <Ui.Select
+            labelId="demo-simple-select-autowidth-label"
+            id="demo-simple-select-autowidth"
+            value={selectedLeadSource}
+            onChange={handleLeadSourceChange}
+            autoWidth
+            label="Lead Source"
+          >
+            {leadSources.map((leadSource) => (
+              <Ui.MenuItem key={leadSource.id} value={leadSource.id}>
+                {leadSource.label}
+              </Ui.MenuItem>
+            ))}
+          </Ui.Select>
+        </Ui.FormControl>
+      </Ui.Grid>
+      <Ui.Grid item xs={12} md={12} lg={12}>
+        <Ui.FormControl style={{ width: '20%', marginBottom: '10px' }}>
+          <Ui.InputLabel id="demo-simple-select-autowidth-label">Property Type</Ui.InputLabel>
+          <Ui.Select
+            labelId="demo-simple-select-autowidth-label"
+            id="demo-simple-select-autowidth"
+            value={selectedPropertyType}
+            onChange={handlePropertyTypeChange}
+            autoWidth
+            label="Property Type"
+          >
+            {propertyType.map((propertyType) => (
+              <Ui.MenuItem key={propertyType.id} value={propertyType.id}>
+                {propertyType.label}
+              </Ui.MenuItem>
+            ))}
+          </Ui.Select>
+        </Ui.FormControl>
+      </Ui.Grid>
+      <Ui.Grid item xs={12} md={12} lg={12}>
+        <Ui.FormControl style={{ width: '20%', marginBottom: '10px' }}>
+        <Ui.InputLabel id="demo-simple-select-autowidth-label">Sale Status</Ui.InputLabel>
+          <Ui.Select
+            labelId="demo-simple-select-autowidth-label"
+            id="demo-simple-select-autowidth"
+            value={selectedSaleStatus}
+            onChange={handleSaleStatusChange}
+            autoWidth
+            label="Sale Status"
+          >
+            {saleStatus.map((saleStatus) => (
+              <Ui.MenuItem key={saleStatus.id} value={saleStatus.id}>
+                {saleStatus.label}
+              </Ui.MenuItem>
+            ))}
+          </Ui.Select>
+        </Ui.FormControl>
+      </Ui.Grid>
+
       <Ui.Grid item container xs={12} spacing={2} direction="row">
         <Ui.Grid item>
           <Ui.Button variant="contained" color="primary" onClick={syncWithLoft47}>
