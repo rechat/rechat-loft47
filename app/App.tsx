@@ -8,6 +8,7 @@ import { BrokerageDealsService } from './service/BrokerageDealsService'
 import { DealsMappingService } from './service/DealsMappingService'
 import { BrokerageProfilesService } from './service/BrokerageProfilesService'
 import { usePersistentState } from './hooks/usePersistentState'
+import { getBuyersNames, getSellersNames, toISOWithOffset } from './core/utils'
 
 // Ensures sign-in happens only once even if the component remounts in development (e.g. React-StrictMode)
 let didSignInGlobal = false;
@@ -19,7 +20,7 @@ type Loft47Brokerage = {
 }
 
 export function App({
-  models: { deal, roles, user },
+  models: { deal: RechatDeal, roles, user },
   api: {
     getDealContext,
     updateDealContext,
@@ -42,7 +43,7 @@ export function App({
 }: EntryProps) {
   ReactUse.useDebounce(() => {}, 1000, [])
 
-  const [RechatDeal, setRechatDeal] = React.useState<IDeal>()
+  // const [RechatDeal, setRechatDeal] = React.useState<IDeal>()
   const [Loft47Brokerages, setLoft47Brokerages] = React.useState<Loft47Brokerage[]>([])
 
   const DealContexts = [
@@ -240,7 +241,6 @@ export function App({
     await AuthService.signIn(
       process.env.LOFT47_EMAIL_1 || '', 
       process.env.LOFT47_PASSWORD_1 || '')
-    setRechatDeal(deal)
   }
 
   const retrieveBrokerages = async () => {
@@ -255,7 +255,7 @@ export function App({
   }
 
   const getBrokerageDeals = async () => {
-    console.log('RechatDealId:', RechatDeal?.id)
+    console.log('RechatDealId:', RechatDeal.id)
     if (Loft47Brokerages.length > 0) {
       const dealsData = await BrokerageDealsService.getBrokerageDeals(Loft47Brokerages[0].id ?? '')
       console.log('dealsData', dealsData)
@@ -269,57 +269,9 @@ export function App({
     }
   }
 
-  const toISOWithOffset = (date: Date) => {
-    const tzOffset = -date.getTimezoneOffset(); // in minutes
-    const sign = tzOffset >= 0 ? '+' : '-';
-    const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0');
-    const hours = pad(tzOffset / 60);
-    const minutes = pad(tzOffset % 60);
-    const iso = date.toISOString().slice(0, -1); // remove 'Z'
-    return `${iso}${sign}${hours}:${minutes}`;
-  }
-
-  const createMapping = async () => {
-    if (Loft47Brokerages.length > 0 && RechatDeal) {
-      const block = getDealContext('block_number')
-      const closedAt = getDealContext('closed_at')
-      const lot = getDealContext('lot_number')
-      const mlsNumber = getDealContext('mls_number')
-      const salesPrice = getDealContext('sales_price')
-      const updatedAt = RechatDeal?.updated_at
-      const possessionAt = toISOWithOffset(new Date((getDealContext('possession_date')?.date ?? 0) * 1000))
-      const buyer = roles.find(role => role.role === 'Buyer')
-      const seller = roles.find(role => role.role === 'Seller')
-
-      const tempRechatDeal = {
-        data: {
-          attributes: {
-            ownerId: loft47Profile.id,
-            ...(block && { block }),
-            adjustmentAt: toISOWithOffset(new Date((updatedAt ?? 0) * 1000)),
-            ...(buyer && { buyerNames: buyer.legal_full_name }),
-            ...(closedAt && { closedAt }),
-            dealSubType: selectedDealSubType,
-            dealType: selectedDealType,
-            leadSource: selectedLeadSource,
-            propertyType: selectedPropertyType,
-            saleStatus: selectedSaleStatus,
-            exclusive: !deal.listing,
-            externalexternalTransactionId: deal.id,
-            ...(deal.brand.brand_type === 'Office' && { officeId: deal.brand.parent[0] }),
-            ...(lot && { lot }),          
-            ...(mlsNumber && { mlsNumber }),
-            offer: deal.deal_type === 'Buying',
-            ownerName: loft47Profile.legal_full_name,
-            ...(possessionAt && { possessionAt }),
-            ...(salesPrice && { sellPrice: salesPrice.text }),
-            ...(seller && { sellerNames: seller.legal_full_name }),
-            ...(closedAt && { soldAt: closedAt }),
-            teamDeal: deal.brand.brand_type === 'Team'
-          }
-        }
-      }
-      const newLoft47Deal = await BrokerageDealsService.createDeal(Loft47Brokerages[0].id, tempRechatDeal)
+  const createMapping = async (tempLoft47Deal: any) => {
+    if (Loft47Brokerages.length > 0) {
+      const newLoft47Deal = await BrokerageDealsService.createDeal(Loft47Brokerages[0].id, tempLoft47Deal)
       console.log('newLoft47Deal', newLoft47Deal)
 
       if (newLoft47Deal.error) {
@@ -336,46 +288,8 @@ export function App({
     }
   }
 
-  const updateMapping = async (loft47DealId: string) => {
-    const block = getDealContext('block_number')
-    const closedAt = getDealContext('closed_at')
-    const lot = getDealContext('lot_number')
-    const mlsNumber = getDealContext('mls_number')
-    const salesPrice = getDealContext('sales_price')
-    const updatedAt = RechatDeal?.updated_at
-    const possessionAt = toISOWithOffset(new Date((getDealContext('possession_date')?.date ?? 0) * 1000))
-    const buyer = roles.find(role => role.role === 'Buyer')
-    const seller = roles.find(role => role.role === 'Seller')
-
-    const tempRechatDeal = {
-      data: {
-        attributes: {
-          ownerId: loft47Profile.id,
-          ...(block && { block }),
-          adjustmentAt: toISOWithOffset(new Date((updatedAt ?? 0) * 1000)),
-          ...(buyer && { buyerNames: buyer.legal_full_name }),
-          ...(closedAt && { closedAt }),
-          dealSubType: selectedDealSubType,
-          dealType: selectedDealType,
-          leadSource: selectedLeadSource,
-          propertyType: selectedPropertyType,
-          saleStatus: selectedSaleStatus,
-          exclusive: !deal.listing,
-          externalexternalTransactionId: deal.id,
-          ...(deal.brand.brand_type === 'Office' && { officeId: deal.brand.parent[0] }),
-          ...(lot && { lot }),          
-          ...(mlsNumber && { mlsNumber }),
-          offer: deal.deal_type === 'Buying',
-          ownerName: loft47Profile.legal_full_name,
-          ...(possessionAt && { possessionAt }),
-          ...(salesPrice && { sellPrice: salesPrice.text }),
-          ...(seller && { sellerNames: seller.legal_full_name }),
-          ...(closedAt && { soldAt: closedAt }),
-          teamDeal: deal.brand.brand_type === 'Team'
-        }
-      }
-    }
-    const updatedLoft47Deal = await BrokerageDealsService.updateDeal(Loft47Brokerages[0].id ?? '', loft47DealId, tempRechatDeal)
+  const updateMapping = async (loft47DealId: string, tempLoft47Deal: any) => {
+    const updatedLoft47Deal = await BrokerageDealsService.updateDeal(Loft47Brokerages[0].id ?? '', loft47DealId, tempLoft47Deal)
     console.log('updatedLoft47Deal', updatedLoft47Deal);
     if (updatedLoft47Deal.error) {
       setMessage('Error updating deal in Loft47: ' + updatedLoft47Deal.error)
@@ -386,9 +300,15 @@ export function App({
     showMessage()
   }
 
-  const syncWithLoft47 = async () => {
+  const checkIfAllContextsAreFilled = () => {
     if (!RechatDeal) {
       setMessage('Rechat Deal is empty')
+      showMessage()
+      return
+    }
+    
+    if (selectedDealSubType === '') {
+      setMessage('Please select a deal sub type')
       showMessage()
       return
     }
@@ -399,10 +319,71 @@ export function App({
       return
     }
 
+    if (selectedLeadSource === '') {
+      setMessage('Please select a lead source')
+      showMessage()
+      return
+    }
+
+    if (selectedPropertyType === '') {
+      setMessage('Please select a property type')
+      showMessage()
+      return
+    }
+
+    if (selectedSaleStatus === '') {
+      setMessage('Please select a sale status')
+      showMessage()
+      return
+    }
+
     if (!loft47Profile) {
       setMessage('Loft47 profile that corresponds to ' + user.email + ' doesn\'t exist')
       showMessage()
       return
+    }
+  }
+
+  const syncWithLoft47 = async () => {    
+    checkIfAllContextsAreFilled()
+
+    const block = getDealContext('block_number')
+    const closedAt = getDealContext('closed_at')
+    const lot = getDealContext('lot_number')
+    const mlsNumber = getDealContext('mls_number')
+    const salesPrice = getDealContext('sales_price')
+    const updatedAt = RechatDeal.updated_at
+    const possessionAt = toISOWithOffset(new Date((getDealContext('possession_date')?.date ?? 0) * 1000))
+    const buyerNames = getBuyersNames(roles)
+    const sellerNames = getSellersNames(roles)
+
+    const tempLoft47Deal = {
+      data: {
+        attributes: {
+          ownerId: loft47Profile.id,
+          ...(block && { block }),
+          adjustmentAt: toISOWithOffset(new Date((updatedAt ?? 0) * 1000)),
+          ...(buyerNames && { buyerNames }),
+          ...(closedAt && { closedAt }),
+          dealSubType: selectedDealSubType,
+          dealType: selectedDealType,
+          leadSource: selectedLeadSource,
+          propertyType: selectedPropertyType,
+          saleStatus: selectedSaleStatus,
+          exclusive: !RechatDeal.listing,
+          externalexternalTransactionId: RechatDeal.id,
+          ...(RechatDeal.brand.brand_type === 'Office' && { officeId: RechatDeal.brand.parent[0] }),
+          ...(lot && { lot }),          
+          ...(mlsNumber && { mlsNumber }),
+          offer: RechatDeal.deal_type === 'Buying',
+          ownerName: loft47Profile.legal_full_name,
+          ...(possessionAt && { possessionAt }),
+          ...(salesPrice && { sellPrice: salesPrice.text }),
+          ...(sellerNames && { sellerNames }),
+          ...(closedAt && { soldAt: closedAt }),
+          teamDeal: RechatDeal.brand.brand_type === 'Team'
+        }
+      }
     }
 
     setIsLoading(true)
@@ -412,11 +393,11 @@ export function App({
     if (!mapping.error) {
       setMessage('Rechat Deal(' + RechatDeal?.id + ') exists in Loft47. Updating deal in Loft47...')
       showMessage()
-      await updateMapping(mapping.loft47_deal_id)
+      await updateMapping(mapping.loft47_deal_id, tempLoft47Deal)
     } else {
       setMessage('Rechat Deal(' + RechatDeal?.id + ') does not exist in Loft47. Creating deal in Loft47...')
       showMessage()
-      await createMapping()
+      await createMapping(tempLoft47Deal)
     }
     setIsLoading(false)
   }
