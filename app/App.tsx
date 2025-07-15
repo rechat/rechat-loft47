@@ -281,6 +281,13 @@ export function App({
 
   const createMapping = async () => {
     if (Loft47Brokerages.length > 0 && RechatDeal) {
+      const block = getDealContext('block_number')
+      const closedAt = getDealContext('closed_at')
+      const lot = getDealContext('lot_number')
+      const mlsNumber = getDealContext('mls_number')
+      const salesPrice = getDealContext('sales_price')
+      const updatedAt = RechatDeal?.updated_at
+      const possessionAt = toISOWithOffset(new Date((getDealContext('possession_date')?.date ?? 0) * 1000))
       const buyer = roles.find(role => role.role === 'Buyer')
       const seller = roles.find(role => role.role === 'Seller')
 
@@ -288,20 +295,27 @@ export function App({
         data: {
           attributes: {
             ownerId: loft47Profile.id,
-            adjustmentAt: toISOWithOffset(new Date((RechatDeal?.updated_at ?? 0) * 1000)),
+            ...(block && { block }),
+            adjustmentAt: toISOWithOffset(new Date((updatedAt ?? 0) * 1000)),
             ...(buyer && { buyerNames: buyer.legal_full_name }),
-            ...(getDealContext('closed_at') && { closedAt: getDealContext('closed_at') }),
-            dealType: selectedDealType,
+            ...(closedAt && { closedAt }),
             dealSubType: selectedDealSubType,
+            dealType: selectedDealType,
             leadSource: selectedLeadSource,
             propertyType: selectedPropertyType,
             saleStatus: selectedSaleStatus,
-            ...(getDealContext('lot_number') && { lot: getDealContext('lot_number') }),          
-            exclusive: getDealContext('mls_number') ? false : true,
-            ...(getDealContext('mls_number') && { mlsNumber: getDealContext('mls_number') }),
-            ...(getDealContext('sales_price') && { sellPrice: getDealContext('sales_price').text }),
+            exclusive: !deal.listing,
+            externalexternalTransactionId: deal.id,
+            ...(deal.brand.brand_type === 'Office' && { officeId: deal.brand.parent[0] }),
+            ...(lot && { lot }),          
+            ...(mlsNumber && { mlsNumber }),
+            offer: deal.deal_type === 'Buying',
+            ownerName: loft47Profile.legal_full_name,
+            ...(possessionAt && { possessionAt }),
+            ...(salesPrice && { sellPrice: salesPrice.text }),
             ...(seller && { sellerNames: seller.legal_full_name }),
-            ...(getDealContext('closed_at') && { soldAt: getDealContext('closed_at') }),
+            ...(closedAt && { soldAt: closedAt }),
+            teamDeal: deal.brand.brand_type === 'Team'
           }
         }
       }
@@ -323,6 +337,13 @@ export function App({
   }
 
   const updateMapping = async (loft47DealId: string) => {
+    const block = getDealContext('block_number')
+    const closedAt = getDealContext('closed_at')
+    const lot = getDealContext('lot_number')
+    const mlsNumber = getDealContext('mls_number')
+    const salesPrice = getDealContext('sales_price')
+    const updatedAt = RechatDeal?.updated_at
+    const possessionAt = toISOWithOffset(new Date((getDealContext('possession_date')?.date ?? 0) * 1000))
     const buyer = roles.find(role => role.role === 'Buyer')
     const seller = roles.find(role => role.role === 'Seller')
 
@@ -330,20 +351,27 @@ export function App({
       data: {
         attributes: {
           ownerId: loft47Profile.id,
-          adjustmentAt: toISOWithOffset(new Date((RechatDeal?.updated_at ?? 0) * 1000)),
+          ...(block && { block }),
+          adjustmentAt: toISOWithOffset(new Date((updatedAt ?? 0) * 1000)),
           ...(buyer && { buyerNames: buyer.legal_full_name }),
-          ...(getDealContext('closed_at') && { closedAt: getDealContext('closed_at') }),
-          dealType: selectedDealType,
+          ...(closedAt && { closedAt }),
           dealSubType: selectedDealSubType,
+          dealType: selectedDealType,
           leadSource: selectedLeadSource,
           propertyType: selectedPropertyType,
           saleStatus: selectedSaleStatus,
-          ...(getDealContext('lot_number') && { lot: getDealContext('lot_number') }),          
-          exclusive: getDealContext('mls_number') ? false : true,
-          ...(getDealContext('mls_number') && { mlsNumber: getDealContext('mls_number') }),
-          ...(getDealContext('sales_price') && { sellPrice: getDealContext('sales_price').text }),
+          exclusive: !deal.listing,
+          externalexternalTransactionId: deal.id,
+          ...(deal.brand.brand_type === 'Office' && { officeId: deal.brand.parent[0] }),
+          ...(lot && { lot }),          
+          ...(mlsNumber && { mlsNumber }),
+          offer: deal.deal_type === 'Buying',
+          ownerName: loft47Profile.legal_full_name,
+          ...(possessionAt && { possessionAt }),
+          ...(salesPrice && { sellPrice: salesPrice.text }),
           ...(seller && { sellerNames: seller.legal_full_name }),
-          ...(getDealContext('closed_at') && { soldAt: getDealContext('closed_at') }),
+          ...(closedAt && { soldAt: closedAt }),
+          teamDeal: deal.brand.brand_type === 'Team'
         }
       }
     }
