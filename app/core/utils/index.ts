@@ -206,3 +206,15 @@ export const getOtherAgent = (roles: IDealRole[], deal: IDeal) => {
   const otherAgent = roles.find(role => role.role === other_agent_type)
   return otherAgent
 }
+
+export const decideOwningSide = (deal: IDeal) => {
+  let owningSide = ''
+  if (deal.deal_type === 'Buying') {
+    owningSide = 'sell'
+  } else if (deal.deal_type === 'Selling') {
+    owningSide = 'list'
+  }
+  const enderType = deal.context.ender_type?.text
+  owningSide = (enderType === 'OfficeDoubleEnder' || enderType === 'OfficeSingleEnder') ? 'double_end' : owningSide
+  return owningSide
+}

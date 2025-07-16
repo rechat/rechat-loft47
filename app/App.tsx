@@ -20,6 +20,7 @@ import {
   toISOWithOffset,
   getMainAgent,
   getOtherAgent,
+  decideOwningSide,
 } from './core/utils'
 
 // Ensures sign-in happens only once even if the component remounts in development (e.g. React-StrictMode)
@@ -204,12 +205,14 @@ export function App({
   }
 
   const syncWithLoft47 = async () => {    
+    console.log('RechatDeal:', RechatDeal)
+
     if (!checkIfAllContextsAreFilled()) {
       return
     }
 
     const block = getDealContext('block_number')
-    const closedAt = getDealContext('closed_at')
+    const closedAt = toISOWithOffset(new Date((getDealContext('closing_date')?.date ?? 0) * 1000))
     const lot = getDealContext('lot_number')
     const mlsNumber = getDealContext('mls_number')
     const salesPrice = getDealContext('sales_price')
@@ -219,6 +222,7 @@ export function App({
     const sellerNames = getSellersNames(roles)
     const mainAgent = getMainAgent(roles, RechatDeal)
     const otherAgent = getOtherAgent(roles, RechatDeal)
+    const owningSide = decideOwningSide(RechatDeal)
 
     const tempLoft47Deal = {
       data: {
@@ -240,20 +244,20 @@ export function App({
           ...(mlsNumber && { mlsNumber }),
           offer: RechatDeal.deal_type === 'Buying',
           ...(otherAgent && { outsideBrokerageName: otherAgent.company_title }),
+          ...(owningSide && { owningSide }),
           ...(mainAgent && { ownerName: mainAgent.legal_full_name }),
           ...(possessionAt && { possessionAt }),
           ...(salesPrice && { sellPrice: salesPrice.text }),
           ...(sellerNames && { sellerNames }),
           ...(closedAt && { soldAt: closedAt }),
-          teamDeal: RechatDeal.brand.brand_type === 'Team'
+          teamDeal: RechatDeal.brand.brand_type === 'Team',
         }
       }
     }
 
     setIsLoading(true)
     const mapping = await DealsMappingService.getMappingByRechatDealId(RechatDeal.id)
-    console.log('mapping', mapping)
-    
+
     if (!mapping.error) {
       setMessage('Rechat Deal(' + RechatDeal?.id + ') exists in Loft47. Updating deal in Loft47...')
       showMessage()
