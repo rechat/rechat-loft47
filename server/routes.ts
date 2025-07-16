@@ -23,7 +23,16 @@ import {
   createDeal,
   updateBrokerageDeal
 } from './app/controllers/loft47/brokerage_deals'
-import { getBrokerageProfiles } from './app/controllers/loft47/brokerage_profiles'
+import { 
+  createBrokerageProfile, 
+  getBrokerageProfile, 
+  getBrokerageProfiles, 
+  updateBrokerageProfile 
+} from './app/controllers/loft47/brokerage_profiles'
+import { 
+  createBrokerageDealProfileAccess, 
+  updateBrokerageDealProfileAccess 
+} from './app/controllers/loft47/brokerage_deals_profile_accesses'
 
 const router = express.Router()
 
@@ -47,6 +56,11 @@ router.route('/loft47/brokerages/:id')
 
 router.route('/loft47/brokerages/:brokerage_id/profiles')
   .get(getBrokerageProfiles)
+  .post(createBrokerageProfile)
+
+router.route('/loft47/brokerages/:brokerage_id/profiles/:profile_id')
+  .get(getBrokerageProfile)
+  .patch(updateBrokerageProfile)
 
 router.route('/loft47/brokerages/:brokerage_id/deals')
   .get(getBrokerageDeals)
@@ -55,6 +69,13 @@ router.route('/loft47/brokerages/:brokerage_id/deals')
 router.route('/loft47/brokerages/:brokerage_id/deals/:deal_id')
   .get(getBrokerageDeal)
   .patch(updateBrokerageDeal)
+
+router.route('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses')
+  .post(createBrokerageDealProfileAccess)
+
+router.route('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses/:profile_access_id')
+  .patch(updateBrokerageDealProfileAccess)
+
 
 // Deal mappings routes
 router.route('/loft47/deal_mappings')
