@@ -8,7 +8,19 @@ import { BrokerageDealsService } from './service/BrokerageDealsService'
 import { DealsMappingService } from './service/DealsMappingService'
 import { BrokerageProfilesService } from './service/BrokerageProfilesService'
 import { usePersistentState } from './hooks/usePersistentState'
-import { getBuyersNames, getSellersNames, toISOWithOffset } from './core/utils'
+import { 
+  dealSubTypes,
+  dealTypes,
+  leadSources,
+  propertyType,
+  saleStatus,
+  DealContexts, 
+  getBuyersNames, 
+  getSellersNames, 
+  toISOWithOffset,
+  getMainAgent,
+  getOtherAgent,
+} from './core/utils'
 
 // Ensures sign-in happens only once even if the component remounts in development (e.g. React-StrictMode)
 let didSignInGlobal = false;
@@ -43,173 +55,7 @@ export function App({
 }: EntryProps) {
   ReactUse.useDebounce(() => {}, 1000, [])
 
-  // const [RechatDeal, setRechatDeal] = React.useState<IDeal>()
   const [Loft47Brokerages, setLoft47Brokerages] = React.useState<Loft47Brokerage[]>([])
-
-  const DealContexts = [
-    {
-      id: 'full_address',
-      label: 'Full Address',
-      type: 'text'
-    },
-    {
-      id: 'list_price',
-      label: 'List Price',
-      type: 'number'
-    },
-    {
-      id: 'list_date',
-      label: 'List Date',
-      type: 'text'
-    },
-    {
-      id: 'expiration_date',
-      label: 'Expiration Date',
-      type: 'text'
-    },
-    {
-      id: 'closing_date',
-      label: 'Closing Date',
-      type: 'text'
-    },
-    {
-      id: 'sales_price',
-      label: 'Sales Price',
-      type: 'number'
-    },
-    {
-      id: 'contract_date',
-      label: 'Contract Date',
-      type: 'text'
-    },
-    {
-      id: 'lease_price',
-      label: 'Lease Price',
-      type: 'number'
-    },
-    {
-      id: 'leased_price',
-      label: 'Leased Price',
-      type: 'number'
-    },
-    {
-      id: 'lease_begin',
-      label: 'Lease Begin Date',
-      type: 'text'
-    },
-    {
-      id: 'lease_end',
-      label: 'Lease End Date',
-      type: 'text'
-    }
-  ]
-
-  const dealTypes = [
-    {
-      id: 'standard',
-      label: 'Standard'
-    },
-    {
-      id: 'project_or_new_construction',
-      label: 'Project or New Construction'
-    },
-    {
-      id: 'property_management',
-      label: 'Property Management'
-    },
-    {
-      id: 'referral',
-      label: 'Referral'
-    },
-    {
-      id: 'lease',
-      label: 'Lease'
-    }
-  ]
-
-  const dealSubTypes = [
-    {
-      id: 'unknown',
-      label: 'Unknown'
-    },
-    {
-      id: 'single_family_home',
-      label: 'Single Family Home' 
-    },
-    {
-      id: 'condo_townhome',
-      label: 'Condo/Townhome'
-    },
-    {
-      id: 'agricultural',
-      label: 'Agricultural'
-    },
-    {
-      id: 'industrial',
-      label: 'Industrial'
-    },
-    {
-      id: 'land',
-      label: 'Land'
-    },
-    {
-      id: 'multi_family',
-      label: 'Multi-Family'
-    },
-    {
-      id: 'office', 
-      label: 'Office'
-    },
-    {
-      id: 'retail',
-      label: 'Retail'
-    }
-  ]
-
-  const leadSources = [
-    {
-      id: 'company',
-      label: 'Company'
-    },
-    {
-      id: 'agent',
-      label: 'Agent'
-    }
-  ]
-
-  const propertyType = [
-    {
-      id: 'residential',
-      label: 'Residential'
-    },
-    {
-      id: 'commercial',
-      label: 'Commercial'
-    }
-  ]
-
-  const saleStatus = [
-    {
-      id: 'conditional',
-      label: 'Conditional'
-    },
-    {
-      id: 'firm',
-      label: 'Firm'
-    },
-    {
-      id: 'closed',
-      label: 'Closed'
-    },
-    {
-      id: 'collapsed',
-      label: 'Collapsed'
-    },
-    { 
-      id: 'voided',
-      label: 'Voided'
-    }
-  ]
 
   const [selectedDealType,      setSelectedDealType]      = usePersistentState('dealType',      '')
   const [selectedDealSubType,   setSelectedDealSubType]   = usePersistentState('dealSubType',   '')
@@ -235,7 +81,7 @@ export function App({
 
   const [isLoading, setIsLoading] = React.useState(false)
 
-  const [loft47Profile, setLoft47Profile] = React.useState<any>(null)
+  const [loft47PrimaryAgent, setLoft47PrimaryAgent] = React.useState<any>(null)
 
   const signInOnce = async () => {
     await AuthService.signIn(
@@ -247,11 +93,23 @@ export function App({
     const brokeragesData = await BrokeragesService.retrieveBrokerages()
     setLoft47Brokerages(brokeragesData?.data ?? [])
 
-    const profilesData = await BrokerageProfilesService.getBrokerageProfiles(brokeragesData.data[0].id ?? '')
+    const mainAgent = getMainAgent(roles, RechatDeal)
+    console.log('mainAgent', mainAgent)
     
-    const profile = profilesData.data.find((profile: any) => profile.attributes.email === user.email)
-    
-    setLoft47Profile({...profile.attributes})
+    if (mainAgent) {
+      const profilesData = await BrokerageProfilesService.getBrokerageProfiles(brokeragesData.data[0].id ?? '', mainAgent.email)
+      if (profilesData.data.length > 0) {
+        const profile = profilesData.data[0];
+        console.log('profile', profile)
+        setLoft47PrimaryAgent(profile)
+      } else {
+        setMessage('No primary agent in Loft47! Please add the primary agent to Loft47.')
+        showMessage()
+      }
+    } else {
+      setMessage('No Main Agent in Rechat!')
+      showMessage()
+    }
   }
 
   const getBrokerageDeals = async () => {
@@ -290,7 +148,7 @@ export function App({
 
   const updateMapping = async (loft47DealId: string, tempLoft47Deal: any) => {
     const updatedLoft47Deal = await BrokerageDealsService.updateDeal(Loft47Brokerages[0].id ?? '', loft47DealId, tempLoft47Deal)
-    console.log('updatedLoft47Deal', updatedLoft47Deal);
+    console.log('updatedLoft47Deal', updatedLoft47Deal)
     if (updatedLoft47Deal.error) {
       setMessage('Error updating deal in Loft47: ' + updatedLoft47Deal.error)
       showMessage()
@@ -304,25 +162,25 @@ export function App({
     if (!RechatDeal) {
       setMessage('Rechat Deal is empty')
       showMessage()
-      return
+      return false
     }
     
     if (selectedDealSubType === '') {
       setMessage('Please select a deal sub type')
       showMessage()
-      return
+      return false
     }
 
     if (selectedDealType === '') {
       setMessage('Please select a deal type')
       showMessage()
-      return
+      return false
     }
 
     if (selectedLeadSource === '') {
       setMessage('Please select a lead source')
       showMessage()
-      return
+      return false
     }
 
     if (selectedPropertyType === '') {
@@ -334,18 +192,21 @@ export function App({
     if (selectedSaleStatus === '') {
       setMessage('Please select a sale status')
       showMessage()
-      return
+      return false
     }
 
-    if (!loft47Profile) {
-      setMessage('Loft47 profile that corresponds to ' + user.email + ' doesn\'t exist')
+    if (!loft47PrimaryAgent) {
+      setMessage('Loft47 primary agent doesn\'t exist')
       showMessage()
-      return
+      return false
     }
+    return true
   }
 
   const syncWithLoft47 = async () => {    
-    checkIfAllContextsAreFilled()
+    if (!checkIfAllContextsAreFilled()) {
+      return
+    }
 
     const block = getDealContext('block_number')
     const closedAt = getDealContext('closed_at')
@@ -356,11 +217,13 @@ export function App({
     const possessionAt = toISOWithOffset(new Date((getDealContext('possession_date')?.date ?? 0) * 1000))
     const buyerNames = getBuyersNames(roles)
     const sellerNames = getSellersNames(roles)
+    const mainAgent = getMainAgent(roles, RechatDeal)
+    const otherAgent = getOtherAgent(roles, RechatDeal)
 
     const tempLoft47Deal = {
       data: {
         attributes: {
-          ownerId: loft47Profile.id,
+          ownerId: loft47PrimaryAgent.id,
           ...(block && { block }),
           adjustmentAt: toISOWithOffset(new Date((updatedAt ?? 0) * 1000)),
           ...(buyerNames && { buyerNames }),
@@ -376,7 +239,8 @@ export function App({
           ...(lot && { lot }),          
           ...(mlsNumber && { mlsNumber }),
           offer: RechatDeal.deal_type === 'Buying',
-          ownerName: loft47Profile.legal_full_name,
+          ...(otherAgent && { outsideBrokerageName: otherAgent.company_title }),
+          ...(mainAgent && { ownerName: mainAgent.legal_full_name }),
           ...(possessionAt && { possessionAt }),
           ...(salesPrice && { sellPrice: salesPrice.text }),
           ...(sellerNames && { sellerNames }),

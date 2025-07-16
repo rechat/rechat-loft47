@@ -43,7 +43,6 @@ export const BrokerageDealsService = {
     }
   },
   updateDeal: async (brokerage_id: string, loft47DealId: string, deal: any) => {
-    console.log('updateDeal:', loft47DealId, deal)
     try {
       const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${loft47DealId}`, {
         method: 'PATCH',
