@@ -22,6 +22,7 @@ import {
   getOtherAgent,
   decideOwningSide,
 } from './core/utils'
+import { AddressService } from './service/AddressService'
 
 // Ensures sign-in happens only once even if the component remounts in development (e.g. React-StrictMode)
 let didSignInGlobal = false;
@@ -91,6 +92,7 @@ export function App({
   }
 
   const retrieveBrokerages = async () => {
+    console.log('RechatDeal:', RechatDeal)
     const brokeragesData = await BrokeragesService.retrieveBrokerages()
     setLoft47Brokerages(brokeragesData?.data ?? [])
 
@@ -100,7 +102,7 @@ export function App({
     if (mainAgent) {
       const profilesData = await BrokerageProfilesService.getBrokerageProfiles(brokeragesData.data[0].id ?? '', mainAgent.email)
       if (profilesData.data.length > 0) {
-        const profile = profilesData.data[0];
+        const profile = profilesData.data[0]
         console.log('profile', profile)
         setLoft47PrimaryAgent(profile)
       } else {
@@ -136,6 +138,21 @@ export function App({
       if (newLoft47Deal.error) {
         setMessage('Create deal in Loft47 failed!')
       } else {
+        const addressId = newLoft47Deal.data.relationships.address.data.id
+        const tempAddress = {
+          data: {
+            attributes: {
+              "addressLineOne": getDealContext('street_address')?.text,
+              "city": getDealContext('city')?.text,
+              "country": getDealContext('country')?.text,
+              "postalCode": getDealContext('postal_code')?.text,
+              "province": getDealContext('state')?.text,
+            }
+          }
+        }
+        const address = await AddressService.updateAddress(addressId, tempAddress)
+        console.log('address', address)
+
         const mapping = await DealsMappingService.createMapping(RechatDeal.id, newLoft47Deal.data.id)
         if (!mapping.error) {
           setMessage('Rechat Deal(' + RechatDeal?.id + ') was successfully created in Loft47!')
@@ -155,6 +172,22 @@ export function App({
       showMessage()
       return
     }
+
+    const addressId = updatedLoft47Deal.data.relationships.address.data.id
+    const tempAddress = {
+      data: {
+        attributes: {
+          "addressLineOne": getDealContext('street_address')?.text,
+          "city": getDealContext('city')?.text,
+          "country": getDealContext('country')?.text,
+          "postalCode": getDealContext('postal_code')?.text,
+          "province": getDealContext('state')?.text,
+        }
+      }
+    }
+    const address = await AddressService.updateAddress(addressId, tempAddress)
+    console.log('address', address)
+
     setMessage('Rechat Deal(' + RechatDeal?.id + ') was successfully updated in Loft47!')
     showMessage()
   }
@@ -254,6 +287,8 @@ export function App({
         }
       }
     }
+
+    console.log('tempLoft47Deal', tempLoft47Deal)
 
     setIsLoading(true)
     const mapping = await DealsMappingService.getMappingByRechatDealId(RechatDeal.id)

@@ -33,6 +33,7 @@ import {
   createBrokerageDealProfileAccess, 
   updateBrokerageDealProfileAccess 
 } from './app/controllers/loft47/brokerage_deals_profile_accesses'
+import { retrieveAddress, updateAddress } from './app/controllers/loft47/addresses'
 
 const router = express.Router()
 
@@ -75,6 +76,10 @@ router.route('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses')
 
 router.route('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses/:profile_access_id')
   .patch(updateBrokerageDealProfileAccess)
+
+router.route('/loft47/addresses/:address_id')
+  .get(retrieveAddress)
+  .patch(updateAddress)
 
 
 // Deal mappings routes
