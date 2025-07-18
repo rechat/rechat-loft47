@@ -1,9 +1,7 @@
 export const BrokerageProfilesService = {
-  getBrokerageProfiles: async (brokerage_id: string, agentEmail: string) => {
+  getBrokerageProfiles: async (brokerage_id: string, filters: any) => {
     try {
-      const params = new URLSearchParams({
-        'filter[email][in]': agentEmail
-      });
+      const params = new URLSearchParams(filters);
       const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/profiles?${params}`, {
         method: 'GET'
       })
