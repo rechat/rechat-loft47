@@ -176,12 +176,30 @@ export const toISOWithOffset = (date: Date) => {
 
 export const getBuyersNames = (roles: IDealRole[]) => {
   const buyersNames = roles.filter(role => role.role === 'Buyer').map(role => role.legal_full_name)
-  return buyersNames.join(', ')
+  return buyersNames.join(',')
 }
 
 export const getSellersNames = (roles: IDealRole[]) => {
   const sellersNames = roles.filter(role => role.role === 'Seller').map(role => role.legal_full_name)
-  return sellersNames.join(', ')
+  return sellersNames.join(',')
+}
+
+export const getBuyersEmails = (roles: IDealRole[]) => {
+  const buyersEmails = roles.filter(role => role.role === 'Buyer').map(role => role.email)
+  return buyersEmails.join(',')
+}
+
+export const getSellersEmails = (roles: IDealRole[]) => {
+  const sellersEmails = roles.filter(role => role.role === 'Seller').map(role => role.email)
+  return sellersEmails.join(',')
+}
+
+export const getBuyers = (roles: IDealRole[]) => {
+  return roles.filter(role => role.role === 'Buyer')
+}
+
+export const getSellers = (roles: IDealRole[]) => {
+  return roles.filter(role => role.role === 'Seller')
 }
 
 export const getMainAgent = (roles: IDealRole[], deal: IDeal) => {

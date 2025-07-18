@@ -1,4 +1,26 @@
 export const BrokerageDealsProfileAccessesService = {
+  retrieveBrokerageDealProfileAccesses: async (brokerage_id: string, deal_id: string) => {
+    try {
+      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses`, {
+        method: 'GET'
+      })
+      const data = res.json()
+      return data
+    } catch (err) {
+      console.error(err)
+    }
+  },
+  retrieveBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string) => {
+    try {
+      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses/${profile_access_id}`, {
+        method: 'GET'
+      })
+      const data = res.json()
+      return data
+    } catch (err) {
+      console.error(err)
+    }
+  },
   createBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access: any) => {
     try {
       const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses`, {
@@ -25,6 +47,20 @@ export const BrokerageDealsProfileAccessesService = {
       })
       const data = res.json()
       return data
+    } catch (err) {
+      console.error(err);
+    }
+  },
+  deleteBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string) => { 
+    try {
+      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses/${profile_access_id}`, {
+        method: 'DELETE'
+      })
+      if (res.status === 204) {
+        console.log('Deleted successfully, no response body.')
+      } else {
+        console.log('Deleted failed, response body:', res.statusText)
+      }
     } catch (err) {
       console.error(err);
     }

@@ -5,6 +5,7 @@ import DealContextList from './components/DealContextList'
 import { AuthService } from './service/AuthService'
 import { BrokeragesService } from './service/BrokeragesService'
 import { BrokerageDealsService } from './service/BrokerageDealsService'
+import { BrokerageDealsProfileAccessesService } from './service/BrokerageDealsProfileAccessesService'
 import { DealsMappingService } from './service/DealsMappingService'
 import { BrokerageProfilesService } from './service/BrokerageProfilesService'
 import { usePersistentState } from './hooks/usePersistentState'
@@ -21,6 +22,10 @@ import {
   getMainAgent,
   getOtherAgent,
   decideOwningSide,
+  getBuyers,
+  getSellers,
+  getBuyersEmails,
+  getSellersEmails,
 } from './core/utils'
 import { AddressService } from './service/AddressService'
 
@@ -154,13 +159,13 @@ export function App({
         showMessage()
 
         await updateLoft47DealAddress(newLoft47Deal)
+        await updateDealPeople(newLoft47Deal)
       }
     }
   }
 
   const updateMapping = async (loft47DealId: string, tempLoft47Deal: any) => {
     const updatedLoft47Deal = await BrokerageDealsService.updateDeal(Loft47Brokerages[0].id ?? '', loft47DealId, tempLoft47Deal)
-    console.log('updatedLoft47Deal', updatedLoft47Deal)
     if (updatedLoft47Deal.error) {
       setMessage('Error updating deal in Loft47: ' + updatedLoft47Deal.error)
       showMessage()
@@ -171,6 +176,7 @@ export function App({
     showMessage()
 
     await updateLoft47DealAddress(updatedLoft47Deal)
+    await updateDealPeople(updatedLoft47Deal)
   }
 
   const updateLoft47DealAddress = async (loft47Deal: any) => {
@@ -193,7 +199,6 @@ export function App({
       }
     }
     const address = await AddressService.updateAddress(addressId, tempAddress)
-    console.log('address', address)
     if (address.error) {
       setMessage('Error updating address in Loft47: ' + address.error)
       showMessage()
@@ -243,6 +248,266 @@ export function App({
       return false
     }
     return true
+  }
+
+  const updateDealPeople = async (loft47Deal: any) => {
+    await updateBuyerPeople(loft47Deal)
+    
+    await updateSellerPeople(loft47Deal)
+  }
+
+  const updateBuyerPeople = async (loft47Deal: any) => {
+    const buyers = getBuyers(roles)
+    if (buyers.length === 0) {
+      return
+    }
+
+    const buyerEmails = getBuyersEmails(buyers)
+    const buyerProfiles = await BrokerageProfilesService.getBrokerageProfiles(Loft47Brokerages[0].id ?? '', {
+      'email': buyerEmails
+    })
+    if (buyerProfiles.error) {
+      setMessage('Error getting buyer profiles: ' + buyerProfiles.error)
+      showMessage()
+      return
+    }
+
+    if (buyerProfiles.data.length > 0) {
+      // Ensure we have an array even if API returns null/undefined
+      const existingProfiles: any[] = buyerProfiles?.data ?? []
+      // Map email -> profile for quick lookup
+      const emailToProfile = new Map<string, any>(
+        existingProfiles.map((p: any) => [p.attributes.email, p])
+      )
+
+      // 1. Create missing profiles
+      for (const buyer of buyers) {
+        if (!buyer.email) {
+          continue
+        }
+        if (!emailToProfile.has(buyer.email)) {
+          const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
+            Loft47Brokerages[0].id ?? '',
+            {
+              data: {
+                attributes: {
+                  email: buyer.email,
+                  name: buyer.legal_full_name,
+                  type: 'Profile'
+                }
+              }
+            }
+          )
+          if (newProfileResp?.data) {
+            emailToProfile.set(buyer.email, newProfileResp.data)
+          }
+        }
+      }
+
+      // get all profiles ids corresponding to the buyers
+      const buyerProfileIds = Array.from(emailToProfile.values()).map((p: any) => p.attributes.id)
+
+      // 2. Sync profile accesses for the deal
+      const accessesResp = await BrokerageDealsProfileAccessesService.retrieveBrokerageDealProfileAccesses(
+        Loft47Brokerages[0].id ?? '',
+        loft47Deal.data.id
+      )
+      const existingAccesses: any[] = accessesResp?.data.filter((a: any) => a.attributes.role === 'buyer') ?? []
+      const existingAccessesProfileIds = existingAccesses
+        .map((a: any) => a.attributes.profileId)
+
+      // a) Add missing accesses
+      for (const profileId of buyerProfileIds) {
+        if (!existingAccessesProfileIds.includes(profileId)) {
+          await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
+            Loft47Brokerages[0].id ?? '',
+            loft47Deal.data.id,
+            {
+              data: {
+                attributes: {
+                  profileId: profileId,
+                  role: "buyer",
+                  side: "sell"
+                }
+              }
+            }
+          )
+        }
+      }
+
+      // b) Remove extra accesses that no longer correspond to buyers
+      for (const access of existingAccesses) {
+        if (!buyerProfileIds.includes(access.attributes.profileId)) {
+          await BrokerageDealsProfileAccessesService.deleteBrokerageDealProfileAccess(
+            Loft47Brokerages[0].id ?? '',
+            loft47Deal.data.id,
+            access.id
+          )
+        }
+      }
+    } else {
+      // No profiles found at all – create for every buyer and add access
+      for (const buyer of buyers) {
+        if (!buyer.email) {
+          continue
+        }
+        const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
+          Loft47Brokerages[0].id ?? '',
+          {
+            data: {
+              attributes: {
+                email: buyer.email,
+                name: buyer.legal_full_name,
+                type: 'Profile'
+              }
+            }
+          }
+        )
+        const profileId = newProfileResp?.data?.id
+        if (profileId) {
+          await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
+            Loft47Brokerages[0].id ?? '',
+            loft47Deal.data.id,
+            {
+              data: {
+                attributes: {
+                  profileId: profileId,
+                  role: "buyer",
+                  side: "sell"
+                }
+              }
+            }
+          )
+        }
+      }
+    }
+  }
+
+  const updateSellerPeople = async (loft47Deal: any) => {
+    const sellers = getSellers(roles)
+    if (sellers.length === 0) {
+      return
+    }
+
+    const sellerEmails = getSellersEmails(sellers)
+    const sellerProfiles = await BrokerageProfilesService.getBrokerageProfiles(Loft47Brokerages[0].id ?? '', {
+      'email': sellerEmails
+    })
+    if (sellerProfiles.error) {
+      setMessage('Error getting seller profiles: ' + sellerProfiles.error)
+      showMessage()
+      return
+    }
+
+    if (sellerProfiles.data.length > 0) {
+      // Ensure we have an array even if API returns null/undefined
+      const existingProfiles: any[] = sellerProfiles?.data ?? []
+      // Map email -> profile for quick lookup
+      const emailToProfile = new Map<string, any>(
+        existingProfiles.map((p: any) => [p.attributes.email, p])
+      )
+
+      // 1. Create missing profiles
+      for (const seller of sellers) {
+        if (!seller.email) {
+          continue
+        }
+        if (!emailToProfile.has(seller.email)) {
+          const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
+            Loft47Brokerages[0].id ?? '',
+            {
+              data: {
+                attributes: {
+                  email: seller.email,
+                  name: seller.legal_full_name,
+                  type: 'Profile'
+                }
+              }
+            }
+          )
+          if (newProfileResp?.data) {
+            emailToProfile.set(seller.email, newProfileResp.data)
+          }
+        }
+      }
+
+      // get all profiles ids corresponding to the buyers
+      const sellerProfileIds = Array.from(emailToProfile.values()).map((p: any) => p.attributes.id)
+
+      // 2. Sync profile accesses for the deal
+      const accessesResp = await BrokerageDealsProfileAccessesService.retrieveBrokerageDealProfileAccesses(
+        Loft47Brokerages[0].id ?? '',
+        loft47Deal.data.id
+      )
+      const existingAccesses: any[] = accessesResp?.data.filter((a: any) => a.attributes.role === 'seller') ?? []
+      const existingAccessesProfileIds = existingAccesses
+        .map((a: any) => a.attributes.profileId)
+
+      // a) Add missing accesses
+      for (const profileId of sellerProfileIds) {
+        if (!existingAccessesProfileIds.includes(profileId)) {
+          await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
+            Loft47Brokerages[0].id ?? '',
+            loft47Deal.data.id,
+            {
+              data: {
+                attributes: {
+                  profileId: profileId,
+                  role: "seller",
+                  side: "list"
+                }
+              }
+            }
+          )
+        }
+      }
+
+      // b) Remove extra accesses that no longer correspond to buyers
+      for (const access of existingAccesses) {
+        if (!sellerProfileIds.includes(access.attributes.profileId)) {
+          await BrokerageDealsProfileAccessesService.deleteBrokerageDealProfileAccess(
+            Loft47Brokerages[0].id ?? '',
+            loft47Deal.data.id,
+            access.id
+          )
+        }
+      }
+    } else {
+      // No profiles found at all – create for every buyer and add access
+      for (const seller of sellers) {
+        if (!seller.email) {
+          continue
+        }
+        const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
+          Loft47Brokerages[0].id ?? '',
+          {
+            data: {
+              attributes: {
+                email: seller.email,
+                name: seller.legal_full_name,
+                type: 'Profile'
+              }
+            }
+          }
+        )
+        const profileId = newProfileResp?.data?.id
+        if (profileId) {
+          await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
+            Loft47Brokerages[0].id ?? '',
+            loft47Deal.data.id,
+            {
+              data: {
+                attributes: {
+                  profileId: profileId,
+                  role: "seller",
+                  side: "list"
+                }
+              }
+            }
+          )
+        }
+      }
+    }
   }
 
   const syncWithLoft47 = async () => {    
