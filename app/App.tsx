@@ -97,9 +97,10 @@ export function App({
   }
 
   const retrieveBrokerages = async () => {
-    console.log('RechatDeal:', RechatDeal)
-    console.log('roles:', roles)
-    console.log('user:', user)
+    // console.log('RechatDeal:', RechatDeal)
+    // console.log('roles:', roles)
+    // console.log('user:', user)
+
     const brokeragesData = await BrokeragesService.retrieveBrokerages()
     setLoft47Brokerages(brokeragesData?.data ?? [])
 
@@ -125,22 +126,8 @@ export function App({
     }
   }
 
-  const getBrokerageDeals = async () => {
-    console.log('RechatDealId:', RechatDeal.id)
-    if (Loft47Brokerages.length > 0) {
-      const dealsData = await BrokerageDealsService.getBrokerageDeals(Loft47Brokerages[0].id ?? '')
-      console.log('dealsData', dealsData)
-    }
-  }
-
-  const getBrokerageDeal = async () => {
-    if (Loft47Brokerages.length > 0) {
-      const dealData = await BrokerageDealsService.getBrokerageDeal(Loft47Brokerages[0].id ?? '', '12081')
-      console.log('dealData', dealData)
-    }
-  }
-
   const createMapping = async (tempLoft47Deal: any) => {
+    setIsLoading(true)
     if (Loft47Brokerages.length > 0) {
       const newLoft47Deal = await BrokerageDealsService.createDeal(Loft47Brokerages[0].id, tempLoft47Deal)
       console.log('newLoft47Deal', newLoft47Deal)
@@ -162,9 +149,11 @@ export function App({
         await updateDealPeople(newLoft47Deal)
       }
     }
+    setIsLoading(false)
   }
 
   const updateMapping = async (loft47DealId: string, tempLoft47Deal: any) => {
+    setIsLoading(true)
     const updatedLoft47Deal = await BrokerageDealsService.updateDeal(Loft47Brokerages[0].id ?? '', loft47DealId, tempLoft47Deal)
     if (updatedLoft47Deal.error) {
       setMessage('Error updating deal in Loft47: ' + updatedLoft47Deal.error)
@@ -177,6 +166,7 @@ export function App({
 
     await updateLoft47DealAddress(updatedLoft47Deal)
     await updateDealPeople(updatedLoft47Deal)
+    setIsLoading(false)
   }
 
   const updateLoft47DealAddress = async (loft47Deal: any) => {
@@ -562,10 +552,10 @@ export function App({
       }
     }
 
-    console.log('tempLoft47Deal', tempLoft47Deal)
-
     setIsLoading(true)
+    console.log('tempLoft47Deal', tempLoft47Deal)
     const mapping = await DealsMappingService.getMappingByRechatDealId(RechatDeal.id)
+    setIsLoading(false)
 
     if (!mapping.error) {
       setMessage('Rechat Deal(' + RechatDeal?.id + ') exists in Loft47. Updating deal in Loft47...')
@@ -576,7 +566,6 @@ export function App({
       showMessage()
       await createMapping(tempLoft47Deal)
     }
-    setIsLoading(false)
   }
 
   // Message Snackbar
@@ -599,13 +588,23 @@ export function App({
   };
 
   React.useEffect(() => {
-    // immediately-invoked async helper
-    (async () => {
-      if (didSignInGlobal) return
-      didSignInGlobal = true
-      await signInOnce()
-      await retrieveBrokerages()
+    let cancelled = false
+
+    ;(async () => {
+      setIsLoading(true)          // always set ON at the start
+
+      if (!didSignInGlobal) {
+        didSignInGlobal = true
+        await signInOnce()
+      }
+
+      if (!cancelled) {
+        await retrieveBrokerages()
+        setIsLoading(false)       // OFF when everything is ready
+      }
     })()
+
+    return () => { cancelled = true }
   }, [])
 
   return (
@@ -706,7 +705,12 @@ export function App({
 
       <Ui.Grid item container xs={12} spacing={2} direction="row">
         <Ui.Grid item>
-          <Ui.Button variant="contained" color="primary" onClick={syncWithLoft47}>
+          <Ui.Button 
+            variant="contained" 
+            color="primary" 
+            disabled={!loft47PrimaryAgent || isLoading}
+            onClick={syncWithLoft47}
+          >
             Sync with Loft47
           </Ui.Button>
         </Ui.Grid>
