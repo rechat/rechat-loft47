@@ -117,8 +117,21 @@ export function App({
         console.log('mainAgent profile', profile)
         setLoft47PrimaryAgent(profile)
       } else {
-        setMessage('No primary agent in Loft47! Please add the primary agent to Loft47.')
-        showMessage()
+        const newAgentResp = await BrokerageProfilesService.createBrokerageProfile(
+          brokeragesData.data[0].id ?? '',
+          {
+            data: {
+              attributes: {
+                email: mainAgent.email,
+                name: mainAgent.legal_full_name,
+                type: 'Agent'
+              }
+            }
+          }
+        )
+        const newAgent = newAgentResp.data
+        console.log('new mainAgent profile', newAgent)
+        setLoft47PrimaryAgent(newAgent)
       }
     } else {
       setMessage('No Main Agent in Rechat!')
@@ -500,10 +513,7 @@ export function App({
     }
   }
 
-  const syncWithLoft47 = async () => {    
-    console.log('RechatDeal:', RechatDeal)
-    console.log('roles:', roles)
-
+  const syncWithLoft47 = async () => {
     if (!checkIfAllContextsAreFilled()) {
       return
     }
