@@ -57,7 +57,6 @@ export async function showMappingByRechatDealId(req: Request, res: Response) {
 }
 
 export async function addMapping(req: Request, res: Response) {
-  console.log('addMapping:', req.body)
   try {
     const { rechat_deal_id, loft47_deal_id } = req.body || {}
     if (!rechat_deal_id || !loft47_deal_id) {

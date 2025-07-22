@@ -54,7 +54,6 @@ export const BrokerageDealsProfileAccessesService = {
       const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses/${profile_access_id}`, {
         method: 'DELETE'
       })
-      console.log('deleteBrokerageDealProfileAccess data:', data)
       if (data.status === 204) {
         console.log('Deleted successfully, no response body.')
       } else {

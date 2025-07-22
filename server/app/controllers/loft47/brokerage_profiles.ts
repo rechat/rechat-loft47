@@ -6,7 +6,6 @@ import api from "../../api";
 export async function getBrokerageProfiles(req: Request, res: Response) {
   const { brokerage_id } = req.params
   const { email, search } = req.query
-  console.log('getBrokerageProfiles req.query:', req.query)
   try {
     const response = await api.get(`/brokerages/${brokerage_id}/profiles`, {
       params: {
@@ -21,9 +20,8 @@ export async function getBrokerageProfiles(req: Request, res: Response) {
 }
 
 export async function createBrokerageProfile(req: Request, res: Response) {
+  const { brokerage_id } = req.params
   try {
-    const { brokerage_id } = req.params
-    console.log('createBrokerageProfile req.body:', req.body)
     const response = await api.post(`/brokerages/${brokerage_id}/profiles`, req.body)
     return res.status(response.status).json(response.data);
   } catch (err) {

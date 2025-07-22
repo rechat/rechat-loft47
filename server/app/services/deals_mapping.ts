@@ -26,7 +26,6 @@ export async function getMappingByRechatDealId(id: string) {
 }
 
 export async function createMapping(rechatDealId: string, loft47DealId: string) {
-  console.log('createMapping:', rechatDealId, loft47DealId)
   const { rows } = await query(
     'INSERT INTO rechat_loft47_deals_mapping (rechat_deal_id, loft47_deal_id) VALUES ($1, $2) RETURNING *',
     [rechatDealId, loft47DealId]

@@ -63,7 +63,13 @@ export function App({
 }: EntryProps) {
   ReactUse.useDebounce(() => {}, 1000, [])
 
-  const [Loft47Brokerages, setLoft47Brokerages] = React.useState<Loft47Brokerage[]>([])
+  const Loft47Brokerages = React.useRef<Loft47Brokerage[]>([])
+  // Message Snackbar
+  const [open, setOpen] = React.useState(false);
+  const [message, setMessage] = React.useState('');
+
+  const [isLoading, setIsLoading] = React.useState(false)
+  const loft47PrimaryAgent = React.useRef<any>(null)
 
   const [selectedDealType,      setSelectedDealType]      = usePersistentState('dealType',      '')
   const [selectedDealSubType,   setSelectedDealSubType]   = usePersistentState('dealSubType',   '')
@@ -87,10 +93,6 @@ export function App({
     setSelectedSaleStatus(event.target.value as string)
   }
 
-  const [isLoading, setIsLoading] = React.useState(false)
-
-  const [loft47PrimaryAgent, setLoft47PrimaryAgent] = React.useState<any>(null)
-
   const signInOnce = async () => {
     const env = await ConfigService.getPublicEnv()
     if (!env?.LOFT47_EMAIL || !env.LOFT47_PASSWORD) {
@@ -110,23 +112,21 @@ export function App({
       showMessage()
       return
     }
-    setLoft47Brokerages(brokeragesData?.data ?? [])
+    Loft47Brokerages.current = brokeragesData?.data ?? []
+  }
 
+  const setMainAgent = async () => {
     const mainAgent = getMainAgent(roles, RechatDeal)
-    console.log('mainAgent', mainAgent)
-    
     if (mainAgent) {
-      const profilesData = await BrokerageProfilesService.getBrokerageProfiles(brokeragesData.data[0].id ?? '', {
+      const profilesData = await BrokerageProfilesService.getBrokerageProfiles(Loft47Brokerages.current[0].id ?? '', {
         'email': mainAgent.email
       })
-      console.log('profilesData:', profilesData)
       if (profilesData.data.length > 0) {
         const profile = profilesData.data[0]
-        console.log('mainAgent profile', profile)
-        setLoft47PrimaryAgent(profile)
+        loft47PrimaryAgent.current = profile
       } else {
         const newAgentResp = await BrokerageProfilesService.createBrokerageProfile(
-          brokeragesData.data[0].id ?? '',
+          Loft47Brokerages.current[0].id ?? '',
           {
             data: {
               attributes: {
@@ -138,8 +138,7 @@ export function App({
           }
         )
         const newAgent = newAgentResp.data
-        console.log('new mainAgent profile', newAgent)
-        setLoft47PrimaryAgent(newAgent)
+        loft47PrimaryAgent.current = newAgent
       }
     } else {
       setMessage('No Main Agent in Rechat!')
@@ -150,13 +149,13 @@ export function App({
 
   const createMapping = async (tempLoft47Deal: any) => {
     setIsLoading(true)
-    if (Loft47Brokerages.length > 0) {
-      const newLoft47Deal = await BrokerageDealsService.createDeal(Loft47Brokerages[0].id, tempLoft47Deal)
-      console.log('newLoft47Deal', newLoft47Deal)
+    if (Loft47Brokerages.current.length > 0) {
+      const newLoft47Deal = await BrokerageDealsService.createDeal(Loft47Brokerages.current[0].id, tempLoft47Deal)
 
       if (newLoft47Deal.error) {
         setMessage('Create deal in Loft47 failed!')
         showMessage()
+        setIsLoading(false)
         return
       } else {
         const mapping = await DealsMappingService.createMapping(RechatDeal.id, newLoft47Deal.data.id)
@@ -176,10 +175,11 @@ export function App({
 
   const updateMapping = async (loft47DealId: string, tempLoft47Deal: any) => {
     setIsLoading(true)
-    const updatedLoft47Deal = await BrokerageDealsService.updateDeal(Loft47Brokerages[0].id ?? '', loft47DealId, tempLoft47Deal)
+    const updatedLoft47Deal = await BrokerageDealsService.updateDeal(Loft47Brokerages.current[0].id ?? '', loft47DealId, tempLoft47Deal)
     if (updatedLoft47Deal.error) {
       setMessage('Error updating deal in Loft47: ' + updatedLoft47Deal.error)
       showMessage()
+      setIsLoading(false)
       return
     }
 
@@ -194,7 +194,7 @@ export function App({
   const updateLoft47DealAddress = async (loft47Deal: any) => {
     const streetAddress = getDealContext('street_address')
     if (!streetAddress) {
-      setMessage('No address set for this deal!')
+      setMessage('No address set for this deal! Rechat Deal Title is set in Rechat.')
       showMessage()
     }
 
@@ -254,7 +254,7 @@ export function App({
       return false
     }
 
-    if (!loft47PrimaryAgent) {
+    if (!loft47PrimaryAgent.current) {
       setMessage('Loft47 primary agent doesn\'t exist')
       showMessage()
       return false
@@ -275,7 +275,7 @@ export function App({
     }
 
     const buyerEmails = getBuyersEmails(buyers)
-    const buyerProfiles = await BrokerageProfilesService.getBrokerageProfiles(Loft47Brokerages[0].id ?? '', {
+    const buyerProfiles = await BrokerageProfilesService.getBrokerageProfiles(Loft47Brokerages.current[0].id ?? '', {
       'email': buyerEmails
     })
     if (buyerProfiles.error) {
@@ -299,7 +299,7 @@ export function App({
         }
         if (!emailToProfile.has(buyer.email)) {
           const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
-            Loft47Brokerages[0].id ?? '',
+            Loft47Brokerages.current[0].id ?? '',
             {
               data: {
                 attributes: {
@@ -321,7 +321,7 @@ export function App({
 
       // 2. Sync profile accesses for the deal
       const accessesResp = await BrokerageDealsProfileAccessesService.retrieveBrokerageDealProfileAccesses(
-        Loft47Brokerages[0].id ?? '',
+        Loft47Brokerages.current[0].id ?? '',
         loft47Deal.data.id
       )
       const existingAccesses: any[] = accessesResp?.data.filter((a: any) => a.attributes.role === 'buyer') ?? []
@@ -332,7 +332,7 @@ export function App({
       for (const profileId of buyerProfileIds) {
         if (!existingAccessesProfileIds.includes(profileId)) {
           await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
-            Loft47Brokerages[0].id ?? '',
+            Loft47Brokerages.current[0].id ?? '',
             loft47Deal.data.id,
             {
               data: {
@@ -351,7 +351,7 @@ export function App({
       for (const access of existingAccesses) {
         if (!buyerProfileIds.includes(access.attributes.profileId)) {
           await BrokerageDealsProfileAccessesService.deleteBrokerageDealProfileAccess(
-            Loft47Brokerages[0].id ?? '',
+            Loft47Brokerages.current[0].id ?? '',
             loft47Deal.data.id,
             access.id
           )
@@ -364,7 +364,7 @@ export function App({
           continue
         }
         const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
-          Loft47Brokerages[0].id ?? '',
+          Loft47Brokerages.current[0].id ?? '',
           {
             data: {
               attributes: {
@@ -378,7 +378,7 @@ export function App({
         const profileId = newProfileResp?.data?.id
         if (profileId) {
           await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
-            Loft47Brokerages[0].id ?? '',
+            Loft47Brokerages.current[0].id ?? '',
             loft47Deal.data.id,
             {
               data: {
@@ -402,7 +402,7 @@ export function App({
     }
 
     const sellerEmails = getSellersEmails(sellers)
-    const sellerProfiles = await BrokerageProfilesService.getBrokerageProfiles(Loft47Brokerages[0].id ?? '', {
+    const sellerProfiles = await BrokerageProfilesService.getBrokerageProfiles(Loft47Brokerages.current[0].id ?? '', {
       'email': sellerEmails
     })
     if (sellerProfiles.error) {
@@ -426,7 +426,7 @@ export function App({
         }
         if (!emailToProfile.has(seller.email)) {
           const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
-            Loft47Brokerages[0].id ?? '',
+            Loft47Brokerages.current[0].id ?? '',
             {
               data: {
                 attributes: {
@@ -448,7 +448,7 @@ export function App({
 
       // 2. Sync profile accesses for the deal
       const accessesResp = await BrokerageDealsProfileAccessesService.retrieveBrokerageDealProfileAccesses(
-        Loft47Brokerages[0].id ?? '',
+        Loft47Brokerages.current[0].id ?? '',
         loft47Deal.data.id
       )
       const existingAccesses: any[] = accessesResp?.data.filter((a: any) => a.attributes.role === 'seller') ?? []
@@ -459,7 +459,7 @@ export function App({
       for (const profileId of sellerProfileIds) {
         if (!existingAccessesProfileIds.includes(profileId)) {
           await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
-            Loft47Brokerages[0].id ?? '',
+            Loft47Brokerages.current[0].id ?? '',
             loft47Deal.data.id,
             {
               data: {
@@ -478,7 +478,7 @@ export function App({
       for (const access of existingAccesses) {
         if (!sellerProfileIds.includes(access.attributes.profileId)) {
           await BrokerageDealsProfileAccessesService.deleteBrokerageDealProfileAccess(
-            Loft47Brokerages[0].id ?? '',
+            Loft47Brokerages.current[0].id ?? '',
             loft47Deal.data.id,
             access.id
           )
@@ -491,7 +491,7 @@ export function App({
           continue
         }
         const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
-          Loft47Brokerages[0].id ?? '',
+          Loft47Brokerages.current[0].id ?? '',
           {
             data: {
               attributes: {
@@ -505,7 +505,7 @@ export function App({
         const profileId = newProfileResp?.data?.id
         if (profileId) {
           await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
-            Loft47Brokerages[0].id ?? '',
+            Loft47Brokerages.current[0].id ?? '',
             loft47Deal.data.id,
             {
               data: {
@@ -523,6 +523,7 @@ export function App({
   }
 
   const syncWithLoft47 = async () => {
+    await setMainAgent()
     if (!checkIfAllContextsAreFilled()) {
       return
     }
@@ -543,7 +544,7 @@ export function App({
     const tempLoft47Deal = {
       data: {
         attributes: {
-          ownerId: loft47PrimaryAgent.id,
+          ownerId: loft47PrimaryAgent.current.id,
           ...(block && { block }),
           adjustmentAt: toISOWithOffset(new Date((updatedAt ?? 0) * 1000)),
           ...(buyerNames && { buyerNames }),
@@ -572,7 +573,6 @@ export function App({
     }
 
     setIsLoading(true)
-    console.log('tempLoft47Deal', tempLoft47Deal)
     const mapping = await DealsMappingService.getMappingByRechatDealId(RechatDeal.id)
     setIsLoading(false)
 
@@ -586,10 +586,6 @@ export function App({
       await createMapping(tempLoft47Deal)
     }
   }
-
-  // Message Snackbar
-  const [open, setOpen] = React.useState(false);
-  const [message, setMessage] = React.useState('');
 
   const showMessage = () => {
     setOpen(true);
@@ -610,6 +606,8 @@ export function App({
     let cancelled = false
 
     ;(async () => {
+      setIsLoading(true)          // always set ON at the start
+
       if (!didSignInGlobal) {
         didSignInGlobal = true
         await signInOnce()
@@ -617,6 +615,7 @@ export function App({
 
       if (!cancelled) {
         await retrieveBrokerages()
+        setIsLoading(false)       // OFF when everything is ready
       }
     })()
 
@@ -724,7 +723,7 @@ export function App({
           <Ui.Button 
             variant="contained" 
             color="primary" 
-            disabled={!loft47PrimaryAgent || isLoading}
+            disabled={isLoading}
             onClick={syncWithLoft47}
           >
             Sync with Loft47

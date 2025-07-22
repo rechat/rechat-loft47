@@ -13,7 +13,6 @@ export const BrokerageProfilesService = {
     }
   },
   createBrokerageProfile: async (brokerage_id: string, profile: any) => {
-    console.log('createBrokerageProfile:', brokerage_id, profile)
     try {
       const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/profiles`, {
         method: 'POST',
@@ -28,7 +27,6 @@ export const BrokerageProfilesService = {
     }
   },
   updateBrokerageProfile: async (brokerage_id: string, profile_id: string, profile: any) => {
-    console.log('updateBrokerageProfile:', brokerage_id, profile_id, profile)
     try {
       const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/profiles/${profile_id}`, {
         method: 'PATCH',
