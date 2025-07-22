@@ -29,10 +29,20 @@ app.use(compress())
 // Parse incoming JSON bodies
 app.use(express.json())
 
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:8081',
-  credentials: true
-}));
+app.use(
+  cors(
+    (
+      req: Request,
+      callback: (err: Error | null, options?: CorsOptions) => void
+    ) => {
+      callback(null, {
+        origin:
+          /bundle\.\d+\.js|bundle.js\?v=\w+/.test(req.originalUrl) ||
+          req.originalUrl.endsWith('.json')
+      })
+    }
+  )
+)
 
 app.use(express.json());
 
