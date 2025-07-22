@@ -2,6 +2,7 @@ import express from 'express'
 
 import homeRoute from './app/controllers/home'
 import manifestRoute from './app/controllers/manifest'
+import { getPublicEnv } from './app/controllers/env'
 import { signIn } from './app/controllers/loft47/auth'
 import { 
   retrieveBrokerages, 
@@ -46,6 +47,9 @@ router.get('/', homeRoute)
  * Please don't remove this route
  */
 router.get('/manifest.json', manifestRoute)
+
+// Public env variables for front-end runtime
+router.get('/config/env', getPublicEnv)
 
 router.post('/loft47/sign_in', signIn)
 

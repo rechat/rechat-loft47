@@ -5,7 +5,7 @@ dotenv.config()
 
 const baseConnection = {
   connectionString: process.env.DATABASE_URL,
-  port: Number(process.env.DB_PORT || 5432),
+  port: 5432,
   ssl: { rejectUnauthorized: false }
 }
 

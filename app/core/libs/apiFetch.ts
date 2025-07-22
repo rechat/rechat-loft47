@@ -1,7 +1,7 @@
 // app/core/libs/apiFetch.ts
 type ApiFetchOptions = RequestInit & { parseJson?: boolean }
 
-const BASE_URL = process.env.REACT_APP_SITE_URL ?? '';
+const BASE_URL = 'http://localhost:8081'
 
 /**
  * A wrapper around the browser's fetch that automatically:

@@ -28,6 +28,7 @@ import {
   getSellersEmails,
 } from './core/utils'
 import { AddressService } from './service/AddressService'
+import { ConfigService } from './service/ConfigService'
 
 // Ensures sign-in happens only once even if the component remounts in development (e.g. React-StrictMode)
 let didSignInGlobal = false;
@@ -91,9 +92,13 @@ export function App({
   const [loft47PrimaryAgent, setLoft47PrimaryAgent] = React.useState<any>(null)
 
   const signInOnce = async () => {
-    await AuthService.signIn(
-      process.env.REACT_APP_LOFT47_EMAIL || '', 
-      process.env.REACT_APP_LOFT47_PASSWORD || '')
+    const env = await ConfigService.getPublicEnv()
+    if (!env?.LOFT47_EMAIL || !env.LOFT47_PASSWORD) {
+      console.error('Loft47 credentials not provided by backend')
+      return
+    }
+
+    await AuthService.signIn(env.LOFT47_EMAIL, env.LOFT47_PASSWORD)
   }
 
   const retrieveBrokerages = async () => {
@@ -139,6 +144,7 @@ export function App({
     } else {
       setMessage('No Main Agent in Rechat!')
       showMessage()
+      return
     }
   }
 

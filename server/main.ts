@@ -12,7 +12,7 @@ import webpackDevMiddleware from 'webpack-dev-middleware'
 import session from 'express-session'
 import dotenv from 'dotenv'
 
-dotenv.config({ path: path.resolve(process.cwd(), 'server', '.env') })
+dotenv.config()
 
 import routes from './routes'
 
@@ -41,7 +41,8 @@ app.use(
       const origin = req.header('Origin');
 
       const allow =
-        isAssetRequest || (origin && allowedOrigins.includes(origin));
+        // isAssetRequest || (origin && allowedOrigins.includes(origin));
+        (origin && allowedOrigins.includes(origin));
 
       callback(null, {
         origin: allow,
