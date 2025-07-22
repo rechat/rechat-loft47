@@ -1,28 +1,24 @@
-import { merge } from 'webpack-merge'
-import Webpackbar from 'webpackbar'
-
+import path from 'path';
+import { merge } from 'webpack-merge';
 import webpack from 'webpack';
-import type { Configuration } from 'webpack'
-
+import Webpackbar from 'webpackbar';
 import dotenv from 'dotenv';
+import base from './base';
 
-const env = dotenv.config().parsed || {};
-const envKeys = Object.entries(env).reduce<Record<string, string>>((acc, [key, value]) => {
-  acc[`process.env.${key}`] = JSON.stringify(value);
-  return acc;
-}, {});
+// read ONLY the front-end env file
+const env = dotenv.config({ path: path.resolve(__dirname, '../../app/.env') })
+                 .parsed || {};
 
-import base from './base'
+// convert to DefinePlugin format
+const envKeys = Object.fromEntries(
+  Object.entries(env).map(([k, v]) => [`process.env.${k}`, JSON.stringify(v)])
+);
 
-const config: Configuration = {
+export default merge(base, {
   mode: 'development',
-  output: {
-    filename: 'bundle.js'
-  },
+  output: { filename: 'bundle.js' },
   plugins: [
     new Webpackbar(),
-    new webpack.DefinePlugin(envKeys)
+    new webpack.DefinePlugin(envKeys)   // ← inject variables
   ]
-}
-
-export default merge(base, config)
+});

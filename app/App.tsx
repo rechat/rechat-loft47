@@ -92,16 +92,19 @@ export function App({
 
   const signInOnce = async () => {
     await AuthService.signIn(
-      process.env.LOFT47_EMAIL || '', 
-      process.env.LOFT47_PASSWORD || '')
+      process.env.REACT_APP_LOFT47_EMAIL || '', 
+      process.env.REACT_APP_LOFT47_PASSWORD || '')
   }
 
   const retrieveBrokerages = async () => {
-    // console.log('RechatDeal:', RechatDeal)
-    // console.log('roles:', roles)
-    // console.log('user:', user)
-
+    setIsLoading(true)
     const brokeragesData = await BrokeragesService.retrieveBrokerages()
+    setIsLoading(false)
+    if (brokeragesData.error) {
+      setMessage('Error retrieving brokerages: ' + brokeragesData.error)
+      showMessage()
+      return
+    }
     setLoft47Brokerages(brokeragesData?.data ?? [])
 
     const mainAgent = getMainAgent(roles, RechatDeal)
@@ -601,8 +604,6 @@ export function App({
     let cancelled = false
 
     ;(async () => {
-      setIsLoading(true)          // always set ON at the start
-
       if (!didSignInGlobal) {
         didSignInGlobal = true
         await signInOnce()
@@ -610,7 +611,6 @@ export function App({
 
       if (!cancelled) {
         await retrieveBrokerages()
-        setIsLoading(false)       // OFF when everything is ready
       }
     })()
 

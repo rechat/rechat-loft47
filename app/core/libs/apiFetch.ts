@@ -1,7 +1,7 @@
 // app/core/libs/apiFetch.ts
 type ApiFetchOptions = RequestInit & { parseJson?: boolean }
 
-const BASE_URL = process.env.SITE_URL ?? '';   // injected by Webpack’s DefinePlugin
+const BASE_URL = process.env.REACT_APP_SITE_URL ?? '';
 
 /**
  * A wrapper around the browser's fetch that automatically:
