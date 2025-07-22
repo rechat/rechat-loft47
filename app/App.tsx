@@ -92,8 +92,8 @@ export function App({
 
   const signInOnce = async () => {
     await AuthService.signIn(
-      process.env.LOFT47_EMAIL_1 || '', 
-      process.env.LOFT47_PASSWORD_1 || '')
+      process.env.LOFT47_EMAIL || '', 
+      process.env.LOFT47_PASSWORD || '')
   }
 
   const retrieveBrokerages = async () => {
