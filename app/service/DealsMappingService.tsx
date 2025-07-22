@@ -1,14 +1,15 @@
+import { apiFetch } from '@libs/apiFetch'
+
 export const DealsMappingService = {
   /**
    * Calls back-end proxy to retrieve all mappings.   
    */
   retrieveDealsMappings: async () => {
     try {
-      const res = await fetch(process.env.SITE_URL + '/loft47/deal_mappings', {
+      const data = await apiFetch('/loft47/deal_mappings', {
         method: 'GET'
       })
 
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);
@@ -16,10 +17,9 @@ export const DealsMappingService = {
   },
   getMappingById: async (id: string) => {
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/deal_mappings/${id}`, {
+      const data = await apiFetch(`/loft47/deal_mappings/${id}`, {
         method: 'GET'
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);
@@ -27,10 +27,9 @@ export const DealsMappingService = {
   },
   getMappingByLoft47DealId: async (loft47DealId: string) => {
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/deal_mappings/loft47/${loft47DealId}`, {
+      const data = await apiFetch(`/loft47/deal_mappings/loft47/${loft47DealId}`, {
         method: 'GET'
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);
@@ -38,10 +37,9 @@ export const DealsMappingService = {
   },
   getMappingByRechatDealId: async (rechatDealId: string) => {
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/deal_mappings/rechat/${rechatDealId}`, {
+      const data = await apiFetch(`/loft47/deal_mappings/rechat/${rechatDealId}`, {
         method: 'GET'
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);
@@ -49,14 +47,13 @@ export const DealsMappingService = {
   },
   createMapping: async (rechatDealId: string, loft47DealId: string) => {
     try {
-      const res = await fetch(process.env.SITE_URL + '/loft47/deal_mappings', {
+      const data = await apiFetch('/loft47/deal_mappings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ rechat_deal_id: rechatDealId, loft47_deal_id: loft47DealId })
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);

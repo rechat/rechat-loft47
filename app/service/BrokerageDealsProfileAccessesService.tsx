@@ -1,10 +1,11 @@
+import { apiFetch } from '@libs/apiFetch'
+
 export const BrokerageDealsProfileAccessesService = {
   retrieveBrokerageDealProfileAccesses: async (brokerage_id: string, deal_id: string) => {
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses`, {
+      const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses`, {
         method: 'GET'
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err)
@@ -12,10 +13,9 @@ export const BrokerageDealsProfileAccessesService = {
   },
   retrieveBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string) => {
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses/${profile_access_id}`, {
+      const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses/${profile_access_id}`, {
         method: 'GET'
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err)
@@ -23,14 +23,13 @@ export const BrokerageDealsProfileAccessesService = {
   },
   createBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access: any) => {
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses`, {
+      const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(profile_access)
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err)
@@ -38,14 +37,13 @@ export const BrokerageDealsProfileAccessesService = {
   },
   updateBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string, profile_access: any) => {
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses/${profile_access_id}`, {
+      const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses/${profile_access_id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(profile_access)
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);
@@ -53,13 +51,14 @@ export const BrokerageDealsProfileAccessesService = {
   },
   deleteBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string) => { 
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses/${profile_access_id}`, {
+      const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses/${profile_access_id}`, {
         method: 'DELETE'
       })
-      if (res.status === 204) {
+      console.log('deleteBrokerageDealProfileAccess data:', data)
+      if (data.status === 204) {
         console.log('Deleted successfully, no response body.')
       } else {
-        console.log('Deleted failed, response body:', res.statusText)
+        console.log('Deleted failed, response body:', data.statusText)
       }
     } catch (err) {
       console.error(err);

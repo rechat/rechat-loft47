@@ -1,3 +1,4 @@
+import { apiFetch } from '@libs/apiFetch'
 
 export const BrokeragesService = {
   /**
@@ -7,11 +8,10 @@ export const BrokeragesService = {
    */
   retrieveBrokerages: async () => {
     try {
-      const res = await fetch(process.env.SITE_URL + '/loft47/brokerages', {
+      const data = await apiFetch('/loft47/brokerages', {
         method: 'GET'
       })
 
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);

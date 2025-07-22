@@ -1,3 +1,4 @@
+import { apiFetch } from '@libs/apiFetch'
 
 export const AuthService = {
   /**
@@ -7,7 +8,7 @@ export const AuthService = {
    */
   signIn: async (email: string, password: string) => {
     try {
-      const res = await fetch(process.env.SITE_URL + '/loft47/sign_in', {
+      const data = await apiFetch('/loft47/sign_in', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -20,7 +21,6 @@ export const AuthService = {
           }
         })
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);

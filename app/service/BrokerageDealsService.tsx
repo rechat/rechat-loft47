@@ -1,15 +1,11 @@
+import { apiFetch } from '@libs/apiFetch'
+
 export const BrokerageDealsService = {
-  /**
-   * Calls back-end proxy to retrieve deals for a given brokerage from Loft47.
-   * Avoids CORS error that occurs when calling the Loft47 API directly
-   * from the browser.
-   */
   getBrokerageDeals: async (brokerage_id: string) => {
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals`, {
+      const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals`, {
         method: 'GET'
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);
@@ -17,10 +13,9 @@ export const BrokerageDealsService = {
   },
   getBrokerageDeal: async (brokerage_id: string, deal_id: string) => {
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${deal_id}`, {
+      const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals/${deal_id}`, {
         method: 'GET'
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);
@@ -29,14 +24,13 @@ export const BrokerageDealsService = {
   createDeal: async (brokerage_id: string, deal: any) => {
     console.log('createDeal:', brokerage_id, deal)
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals`, {
+      const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(deal)
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);
@@ -44,14 +38,13 @@ export const BrokerageDealsService = {
   },
   updateDeal: async (brokerage_id: string, loft47DealId: string, deal: any) => {
     try {
-      const res = await fetch(process.env.SITE_URL + `/loft47/brokerages/${brokerage_id}/deals/${loft47DealId}`, {
+      const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals/${loft47DealId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(deal)
       })
-      const data = res.json()
       return data
     } catch (err) {
       console.error(err);
