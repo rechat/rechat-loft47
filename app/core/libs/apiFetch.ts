@@ -1,7 +1,7 @@
 // app/core/libs/apiFetch.ts
 type ApiFetchOptions = RequestInit & { parseJson?: boolean }
 
-const BASE_URL = process.env.REACT_APP_SITE_URL || 'http://localhost:8081'; // dev API server
+const BASE_URL = 'https://loft47.cluster.rechat.com'
 
 /**
  * A wrapper around the browser's fetch that automatically:
