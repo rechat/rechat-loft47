@@ -1,7 +1,10 @@
 // app/core/libs/apiFetch.ts
 type ApiFetchOptions = RequestInit & { parseJson?: boolean }
 
-const BASE_URL = 'http://localhost:8081'
+const BASE_URL =
+  process.env.NODE_ENV === 'production'
+    ? 'https://app.rechat.com'                       // same-origin calls in prod
+    : 'http://localhost:8081'; // dev API server
 
 /**
  * A wrapper around the browser's fetch that automatically:

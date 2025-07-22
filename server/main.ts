@@ -41,8 +41,7 @@ app.use(
       const origin = req.header('Origin');
 
       const allow =
-        // isAssetRequest || (origin && allowedOrigins.includes(origin));
-        (origin && allowedOrigins.includes(origin));
+        isAssetRequest || (origin && allowedOrigins.includes(origin));
 
       callback(null, {
         origin: allow,

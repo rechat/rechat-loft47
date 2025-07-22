@@ -22,7 +22,6 @@ export const BrokerageDealsService = {
     }
   },
   createDeal: async (brokerage_id: string, deal: any) => {
-    console.log('createDeal:', brokerage_id, deal)
     try {
       const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals`, {
         method: 'POST',
