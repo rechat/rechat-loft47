@@ -282,263 +282,117 @@ export const App: React.FC<EntryProps> = ({
   }
 
   const updateDealPeople = async (loft47Deal: any) => {
-    await updateBuyerPeople(loft47Deal)
-    
-    await updateSellerPeople(loft47Deal)
+    // Sync buyers
+    await syncPeople(
+      getBuyers(roles),
+      getBuyersEmails,
+      'buyer',
+      'sell',
+      loft47Deal
+    )
+
+    // Sync sellers
+    await syncPeople(
+      getSellers(roles),
+      getSellersEmails,
+      'seller',
+      'list',
+      loft47Deal
+    )
   }
 
-  const updateBuyerPeople = async (loft47Deal: any) => {
-    const buyers = getBuyers(roles)
-    if (buyers.length === 0) {
-      return
-    }
+  /**
+   * Generic helper to keep people/profiles and profile accesses in sync for a given role.
+   */
+  const syncPeople = async (
+    people: any[],
+    getEmailsFn: (people: any[]) => string,
+    role: 'buyer' | 'seller',
+    side: 'sell' | 'list',
+    loft47Deal: any
+  ) => {
+    const emails = getEmailsFn(people)
+    let profilesResp: any = { data: [] }
 
-    const buyerEmails = getBuyersEmails(buyers)
-    const buyerProfiles = await BrokerageProfilesService.getBrokerageProfiles(Loft47Brokerages.current[0].id ?? '', {
-      'email': buyerEmails,
-      'type': 'Profile'
-    })
-    if (buyerProfiles.error) {
-      setMessage('Error getting buyer profiles: ' + buyerProfiles.error)
-      showMessage()
-      return
-    }
-
-    if (buyerProfiles.data.length > 0) {
-      // Ensure we have an array even if API returns null/undefined
-      const existingProfiles: any[] = buyerProfiles?.data ?? []
-      // Map email -> profile for quick lookup
-      const emailToProfile = new Map<string, any>(
-        existingProfiles.map((p: any) => [p.attributes.email, p])
-      )
-
-      // 1. Create missing profiles
-      for (const buyer of buyers) {
-        if (!buyer.email) {
-          continue
-        }
-        if (!emailToProfile.has(buyer.email)) {
-          const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
-            Loft47Brokerages.current[0].id ?? '',
-            {
-              data: {
-                attributes: {
-                  email: buyer.email,
-                  name: buyer.legal_full_name,
-                  type: 'Profile'
-                }
-              }
-            }
-          )
-          if (newProfileResp?.data) {
-            emailToProfile.set(buyer.email, newProfileResp.data)
-          }
-        }
-      }
-
-      // get all profiles ids corresponding to the buyers
-      const buyerProfileIds = Array.from(emailToProfile.values()).map((p: any) => p.attributes.id)
-
-      // 2. Sync profile accesses for the deal
-      const accessesResp = await BrokerageDealsProfileAccessesService.retrieveBrokerageDealProfileAccesses(
+    if (people.length > 0) {
+      profilesResp = await BrokerageProfilesService.getBrokerageProfiles(
         Loft47Brokerages.current[0].id ?? '',
-        loft47Deal.data.id
+        { email: emails, type: 'Profile' }
       )
-      const existingAccesses: any[] = accessesResp?.data.filter((a: any) => a.attributes.role === 'buyer') ?? []
-      const existingAccessesProfileIds = existingAccesses
-        .map((a: any) => a.attributes.profileId)
-
-      // a) Add missing accesses
-      for (const profileId of buyerProfileIds) {
-        if (!existingAccessesProfileIds.includes(profileId)) {
-          await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
-            Loft47Brokerages.current[0].id ?? '',
-            loft47Deal.data.id,
-            {
-              data: {
-                attributes: {
-                  profileId: String(profileId),
-                  role: "buyer",
-                  side: "sell"
-                }
-              }
-            }
-          )
-        }
+      if (profilesResp.error) {
+        setMessage(`Error getting ${role} profiles: ` + profilesResp.error)
+        showMessage()
+        return
       }
+    }
 
-      // b) Remove extra accesses that no longer correspond to buyers
-      for (const access of existingAccesses) {
-        if (!buyerProfileIds.includes(access.attributes.profileId)) {
-          await BrokerageDealsProfileAccessesService.deleteBrokerageDealProfileAccess(
-            Loft47Brokerages.current[0].id ?? '',
-            loft47Deal.data.id,
-            access.id
-          )
-        }
-      }
-    } else {
-      // No profiles found at all – create for every buyer and add access
-      for (const buyer of buyers) {
-        if (!buyer.email) {
-          continue
-        }
+    // Ensure we have an array even if API returns null/undefined
+    const existingProfiles: any[] = profilesResp.data
+    // Map email -> profile for quick lookup
+    const emailToProfile = new Map<string, any>(
+      existingProfiles.map((p: any) => [p.attributes.email, p])
+    )
+    // 1. Create missing profiles
+    for (const person of people) {
+      if (!person.email) continue
+      if (!emailToProfile.has(person.email)) {
         const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
           Loft47Brokerages.current[0].id ?? '',
           {
             data: {
               attributes: {
-                email: buyer.email,
-                name: buyer.legal_full_name,
+                email: person.email,
+                name: person.legal_full_name,
                 type: 'Profile'
               }
             }
           }
         )
-        const profileId = newProfileResp?.data?.id
-        if (profileId) {
-          await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
-            Loft47Brokerages.current[0].id ?? '',
-            loft47Deal.data.id,
-            {
-              data: {
-                attributes: {
-                  profileId: String(profileId),
-                  role: "buyer",
-                  side: "sell"
-                }
-              }
-            }
-          )
+        if (newProfileResp?.data) {
+          emailToProfile.set(person.email, newProfileResp.data)
         }
       }
     }
-  }
 
-  const updateSellerPeople = async (loft47Deal: any) => {
-    const sellers = getSellers(roles)
-    if (sellers.length === 0) {
-      return
-    }
+    // Get all profiles ids corresponding to the people(Buyers or Sellers)
+    const profileIds = Array.from(emailToProfile.values()).map((p: any) => p.attributes.id)
 
-    const sellerEmails = getSellersEmails(sellers)
-    const sellerProfiles = await BrokerageProfilesService.getBrokerageProfiles(Loft47Brokerages.current[0].id ?? '', {
-      'email': sellerEmails,
-      'type': 'Profile'
-    })
-    if (sellerProfiles.error) {
-      setMessage('Error getting seller profiles: ' + sellerProfiles.error)
-      showMessage()
-      return
-    }
+    // 2. Retrieve existing accesses for this role(Buyers or Sellers)
+    const accessesResp = await BrokerageDealsProfileAccessesService.retrieveBrokerageDealProfileAccesses(
+      Loft47Brokerages.current[0].id ?? '',
+      loft47Deal.data.id
+    )
 
-    if (sellerProfiles.data.length > 0) {
-      // Ensure we have an array even if API returns null/undefined
-      const existingProfiles: any[] = sellerProfiles?.data ?? []
-      // Map email -> profile for quick lookup
-      const emailToProfile = new Map<string, any>(
-        existingProfiles.map((p: any) => [p.attributes.email, p])
-      )
+    const existingAccesses: any[] = accessesResp?.data.filter((a: any) => a.attributes.role === role) ?? []
+    const existingAccessProfileIds = existingAccesses.map((a: any) => a.attributes.profileId)
 
-      // 1. Create missing profiles
-      for (const seller of sellers) {
-        if (!seller.email) {
-          continue
-        }
-        if (!emailToProfile.has(seller.email)) {
-          const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
-            Loft47Brokerages.current[0].id ?? '',
-            {
-              data: {
-                attributes: {
-                  email: seller.email,
-                  name: seller.legal_full_name,
-                  type: 'Profile'
-                }
-              }
-            }
-          )
-          if (newProfileResp?.data) {
-            emailToProfile.set(seller.email, newProfileResp.data)
-          }
-        }
-      }
-
-      // get all profiles ids corresponding to the buyers
-      const sellerProfileIds = Array.from(emailToProfile.values()).map((p: any) => p.attributes.id)
-
-      // 2. Sync profile accesses for the deal
-      const accessesResp = await BrokerageDealsProfileAccessesService.retrieveBrokerageDealProfileAccesses(
-        Loft47Brokerages.current[0].id ?? '',
-        loft47Deal.data.id
-      )
-      const existingAccesses: any[] = accessesResp?.data.filter((a: any) => a.attributes.role === 'seller') ?? []
-      const existingAccessesProfileIds = existingAccesses
-        .map((a: any) => a.attributes.profileId)
-
-      // a) Add missing accesses
-      for (const profileId of sellerProfileIds) {
-        if (!existingAccessesProfileIds.includes(profileId)) {
-          await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
-            Loft47Brokerages.current[0].id ?? '',
-            loft47Deal.data.id,
-            {
-              data: {
-                attributes: {
-                  profileId: String(profileId),
-                  role: "seller",
-                  side: "list"
-                }
-              }
-            }
-          )
-        }
-      }
-
-      // b) Remove extra accesses that no longer correspond to buyers
-      for (const access of existingAccesses) {
-        if (!sellerProfileIds.includes(access.attributes.profileId)) {
-          await BrokerageDealsProfileAccessesService.deleteBrokerageDealProfileAccess(
-            Loft47Brokerages.current[0].id ?? '',
-            loft47Deal.data.id,
-            access.id
-          )
-        }
-      }
-    } else {
-      // No profiles found at all – create for every buyer and add access
-      for (const seller of sellers) {
-        if (!seller.email) {
-          continue
-        }
-        const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
+    // a) Add missing accesses
+    for (const profileId of profileIds) {
+      if (!existingAccessProfileIds.includes(profileId)) {
+        await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
           Loft47Brokerages.current[0].id ?? '',
+          loft47Deal.data.id,
           {
             data: {
               attributes: {
-                email: seller.email,
-                name: seller.legal_full_name,
-                type: 'Profile'
+                profileId: String(profileId),
+                role,
+                side
               }
             }
           }
         )
-        const profileId = newProfileResp?.data?.id
-        if (profileId) {
-          await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
-            Loft47Brokerages.current[0].id ?? '',
-            loft47Deal.data.id,
-            {
-              data: {
-                attributes: {
-                  profileId: String(profileId),
-                  role: "seller",
-                  side: "list"
-                }
-              }
-            }
-          )
-        }
+      }
+    }
+
+    // b) Remove stale accesses that no longer correspond to the people
+    for (const access of existingAccesses) {
+      if (!profileIds.includes(access.attributes.profileId) || profileIds.length === 0) {
+        await BrokerageDealsProfileAccessesService.deleteBrokerageDealProfileAccess(
+          Loft47Brokerages.current[0].id ?? '',
+          loft47Deal.data.id,
+          access.id
+        )
       }
     }
   }

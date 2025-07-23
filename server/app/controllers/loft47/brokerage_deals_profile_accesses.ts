@@ -46,7 +46,7 @@ export async function deleteBrokerageDealProfileAccess(req: Request, res: Respon
   try {
     const { brokerage_id, deal_id, profile_access_id } = req.params
     const response = await api.delete(`/brokerages/${brokerage_id}/deals/${deal_id}/accesses/${profile_access_id}`);
-    return res.status(response.status)
+    return res.status(response.status).send(response.statusText)
   } catch (err) {
     res.status(500).json({ error: 'deleteBrokerageDealProfileAccess error:' + err })
   }
