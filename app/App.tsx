@@ -61,13 +61,14 @@ export const App: React.FC<EntryProps> = ({
 
   const authDataRef = React.useRef<any>(null)
   const [isAuthenticated, setIsAuthenticated] = React.useState(false)
-  const Loft47Brokerages = React.useRef<Loft47Brokerage[]>([])
+  const loft47BrokeragesRef = React.useRef<Loft47Brokerage[]>([])
   // Message Snackbar
   const [open, setOpen] = React.useState(false);
   const [message, setMessage] = React.useState('');
 
   const [isLoading, setIsLoading] = React.useState(false)
-  const loft47PrimaryAgent = React.useRef<any>(null)
+  const loft47PrimaryAgentRef = React.useRef<any>(null)
+  const [loft47DealId, setLoft47DealId] = React.useState('')
 
   const [selectedDealType,      setSelectedDealType]      = usePersistentState('dealType',      '')
   const [selectedDealSubType,   setSelectedDealSubType]   = usePersistentState('dealSubType',   '')
@@ -124,14 +125,14 @@ export const App: React.FC<EntryProps> = ({
       setIsLoading(false)
       return
     }
-    Loft47Brokerages.current = brokeragesData.data
+    loft47BrokeragesRef.current = brokeragesData.data
     setIsLoading(false)
   }
 
   const setMainAgent = async () => {
     const mainAgent = getMainAgent(roles, RechatDeal)
     if (mainAgent) {
-      const profilesData = await BrokerageProfilesService.getBrokerageProfiles(Loft47Brokerages.current[0].id ?? '', {
+      const profilesData = await BrokerageProfilesService.getBrokerageProfiles(loft47BrokeragesRef.current[0].id ?? '', {
         'email': mainAgent.email
       })
       if (profilesData.error) {
@@ -142,10 +143,10 @@ export const App: React.FC<EntryProps> = ({
 
       if (profilesData.data.length > 0) {
         const profile = profilesData.data[0]
-        loft47PrimaryAgent.current = profile
+        loft47PrimaryAgentRef.current = profile
       } else {
         const newAgentResp = await BrokerageProfilesService.createBrokerageProfile(
-          Loft47Brokerages.current[0].id ?? '',
+          loft47BrokeragesRef.current[0].id ?? '',
           {
             data: {
               attributes: {
@@ -157,7 +158,7 @@ export const App: React.FC<EntryProps> = ({
           }
         )
         const newAgent = newAgentResp.data
-        loft47PrimaryAgent.current = newAgent
+        loft47PrimaryAgentRef.current = newAgent
       }
     } else {
       setMessage('No Main Agent in Rechat!')
@@ -168,14 +169,16 @@ export const App: React.FC<EntryProps> = ({
 
   const createMapping = async (tempLoft47Deal: any) => {
     setIsLoading(true)
-    if (Loft47Brokerages.current.length > 0) {
-      const newLoft47Deal = await BrokerageDealsService.createDeal(Loft47Brokerages.current[0].id, tempLoft47Deal)
+    if (loft47BrokeragesRef.current.length > 0) {
+      const newLoft47Deal = await BrokerageDealsService.createDeal(loft47BrokeragesRef.current[0].id, tempLoft47Deal)
 
       if (newLoft47Deal.error) {
         setMessage('Create deal in Loft47 failed!')
         showMessage()
         setIsLoading(false)
       } else {
+        setLoft47DealId(newLoft47Deal.data.id)
+
         const mapping = await DealsMappingService.createMapping(RechatDeal.id, newLoft47Deal.data.id)
         if (!mapping.error) {
           setMessage('Rechat Deal(' + RechatDeal?.id + ') was successfully created in Loft47!')
@@ -191,16 +194,17 @@ export const App: React.FC<EntryProps> = ({
     }
   }
 
-  const updateMapping = async (loft47DealId: string, tempLoft47Deal: any) => {
+  const updateMapping = async (_loft47DealId: string, tempLoft47Deal: any) => {
     setIsLoading(true)
-    const updatedLoft47Deal = await BrokerageDealsService.updateDeal(Loft47Brokerages.current[0].id ?? '', loft47DealId, tempLoft47Deal)
+    const updatedLoft47Deal = await BrokerageDealsService.updateDeal(loft47BrokeragesRef.current[0].id ?? '', _loft47DealId, tempLoft47Deal)
     if (updatedLoft47Deal.error) {
       setMessage('Error updating deal in Loft47: ' + updatedLoft47Deal.error)
       showMessage()
       setIsLoading(false)
       return
     }
-
+    setLoft47DealId(updatedLoft47Deal.data.id)
+    
     setMessage('Rechat Deal(' + RechatDeal?.id + ') was successfully updated in Loft47!')
     showMessage()
     setIsLoading(false)
@@ -273,7 +277,7 @@ export const App: React.FC<EntryProps> = ({
       return false
     }
 
-    if (!loft47PrimaryAgent.current) {
+    if (!loft47PrimaryAgentRef.current) {
       setMessage('Loft47 primary agent doesn\'t exist')
       showMessage()
       return false
@@ -316,7 +320,7 @@ export const App: React.FC<EntryProps> = ({
 
     if (people.length > 0) {
       profilesResp = await BrokerageProfilesService.getBrokerageProfiles(
-        Loft47Brokerages.current[0].id ?? '',
+        loft47BrokeragesRef.current[0].id ?? '',
         { email: emails, type: 'Profile' }
       )
       if (profilesResp.error) {
@@ -337,7 +341,7 @@ export const App: React.FC<EntryProps> = ({
       if (!person.email) continue
       if (!emailToProfile.has(person.email)) {
         const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
-          Loft47Brokerages.current[0].id ?? '',
+          loft47BrokeragesRef.current[0].id ?? '',
           {
             data: {
               attributes: {
@@ -359,7 +363,7 @@ export const App: React.FC<EntryProps> = ({
 
     // 2. Retrieve existing accesses for this role(Buyers or Sellers)
     const accessesResp = await BrokerageDealsProfileAccessesService.retrieveBrokerageDealProfileAccesses(
-      Loft47Brokerages.current[0].id ?? '',
+      loft47BrokeragesRef.current[0].id ?? '',
       loft47Deal.data.id
     )
 
@@ -370,7 +374,7 @@ export const App: React.FC<EntryProps> = ({
     for (const profileId of profileIds) {
       if (!existingAccessProfileIds.includes(profileId)) {
         await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
-          Loft47Brokerages.current[0].id ?? '',
+          loft47BrokeragesRef.current[0].id ?? '',
           loft47Deal.data.id,
           {
             data: {
@@ -389,7 +393,7 @@ export const App: React.FC<EntryProps> = ({
     for (const access of existingAccesses) {
       if (!profileIds.includes(access.attributes.profileId) || profileIds.length === 0) {
         await BrokerageDealsProfileAccessesService.deleteBrokerageDealProfileAccess(
-          Loft47Brokerages.current[0].id ?? '',
+          loft47BrokeragesRef.current[0].id ?? '',
           loft47Deal.data.id,
           access.id
         )
@@ -399,7 +403,7 @@ export const App: React.FC<EntryProps> = ({
 
   const syncWithLoft47 = async () => {
     await retrieveBrokerages()
-    if (Loft47Brokerages.current.length === 0) {
+    if (loft47BrokeragesRef.current.length === 0) {
       setMessage('No brokerages found. Please try again later.')
       showMessage()
       return
@@ -423,7 +427,7 @@ export const App: React.FC<EntryProps> = ({
     const tempLoft47Deal = {
       data: {
         attributes: {
-          ownerId: Number(loft47PrimaryAgent.current.id),
+          ownerId: Number(loft47PrimaryAgentRef.current.id),
           ...(block && { block }),
           adjustmentAt: toISOWithOffset(new Date((updatedAt ?? 0) * 1000)),
           ...(closedAt && { closedAt }),
@@ -464,6 +468,10 @@ export const App: React.FC<EntryProps> = ({
     }
   }
 
+  const openLoft47Deal = () => {
+    window.open(`https://staging.loft47.com/brokerages/${loft47BrokeragesRef.current[0].id}/deals/${loft47DealId}`, '_blank')
+  }
+
   const showMessage = () => {
     setOpen(true);
   };
@@ -495,93 +503,106 @@ export const App: React.FC<EntryProps> = ({
         />
         
       </Ui.Grid>
-      {/* Deal Type */}
-      <Ui.Grid item xs={12} md={12} lg={12}>
-        <Ui.FormControl style={{ width: '100%', marginBottom: '10px' }}>
-          <Ui.FormLabel id="demo-row-radio-buttons-group-label">Deal Type</Ui.FormLabel>
-          <Ui.RadioGroup
-            row
-            aria-labelledby="demo-row-radio-buttons-group-label"
-            name="row-radio-buttons-group"
-            value={selectedDealType}
-            onChange={handleDealTypeChange}
-          >
-            {dealTypes.map((dealType) => (
-              <Ui.FormControlLabel key={dealType.id} value={dealType.id} control={<Ui.Radio />} label={dealType.label} />
-            ))}
-          </Ui.RadioGroup>
-        </Ui.FormControl>
+      
+      <Ui.Grid item xs={12}>
+        <Ui.Grid container spacing={2}>
+          {/* Deal Type */}
+          <Ui.Grid item xs={12} sm={6}>
+            <Ui.FormControl variant="standard" fullWidth>
+              <Ui.InputLabel id="deal-type-select-label">Deal Type</Ui.InputLabel>
+              <Ui.Select
+                labelId="deal-type-select-label"
+                id="deal-type-select"
+                value={selectedDealType}
+                onChange={handleDealTypeChange}
+                label="Deal Type"
+              >
+                {dealTypes.map((dealType) => (
+                  <Ui.MenuItem key={dealType.id} value={dealType.id}>{dealType.label}</Ui.MenuItem>
+                ))}
+              </Ui.Select>
+            </Ui.FormControl>
+          </Ui.Grid>
+
+          {/* Deal Sub Type */}
+          <Ui.Grid item xs={12} sm={6}>
+            <Ui.FormControl variant="standard" fullWidth>
+              <Ui.InputLabel id="deal-sub-type-select-label">Deal Sub Type</Ui.InputLabel>
+              <Ui.Select
+                labelId="deal-sub-type-select-label"
+                id="deal-sub-type-select"
+                value={selectedDealSubType}
+                onChange={handleDealSubTypeChange}
+                label="Deal Sub Type"
+              >
+                {dealSubTypes.map((dealSubType) => (
+                  <Ui.MenuItem key={dealSubType.id} value={dealSubType.id}>{dealSubType.label}</Ui.MenuItem>
+                ))}
+              </Ui.Select>
+            </Ui.FormControl>
+          </Ui.Grid>
+        </Ui.Grid>
       </Ui.Grid>
-      {/* Deal Sub Type */}
-      <Ui.Grid item xs={12} md={12} lg={12}>
-        <Ui.FormControl style={{ width: '100%', marginBottom: '10px' }}>
-          <Ui.FormLabel id="demo-row-radio-buttons-group-label">Deal Sub Type</Ui.FormLabel>
-          <Ui.RadioGroup
-            row
-            aria-labelledby="demo-row-radio-buttons-group-label"
-            name="row-radio-buttons-group"
-            value={selectedDealSubType}
-            onChange={handleDealSubTypeChange}
-          >
-            {dealSubTypes.map((dealSubType) => (
-              <Ui.FormControlLabel key={dealSubType.id} value={dealSubType.id} control={<Ui.Radio />} label={dealSubType.label} />
-            ))}
-          </Ui.RadioGroup>
-        </Ui.FormControl>
-      </Ui.Grid>
-      {/* Lead Source */}
-      <Ui.Grid item xs={12} md={12} lg={12}>
-        <Ui.FormControl style={{ width: '100%', marginBottom: '10px' }}>
-          <Ui.FormLabel id="demo-row-radio-buttons-group-label">Lead Source</Ui.FormLabel>
-          <Ui.RadioGroup
-            row
-            aria-labelledby="demo-row-radio-buttons-group-label"
-            name="row-radio-buttons-group"
-            value={selectedLeadSource}
-            onChange={handleLeadSourceChange}
-          >
-            {leadSources.map((leadSource) => (
-              <Ui.FormControlLabel key={leadSource.id} value={leadSource.id} control={<Ui.Radio />} label={leadSource.label} />
-            ))}
-          </Ui.RadioGroup>
-        </Ui.FormControl>
-      </Ui.Grid>
-      {/* Property Type */}
-      <Ui.Grid item xs={12} md={12} lg={12}>
-        <Ui.FormControl style={{ width: '100%', marginBottom: '10px' }}>
-          <Ui.FormLabel id="demo-row-radio-buttons-group-label">Property Type</Ui.FormLabel>
-          <Ui.RadioGroup
-            row
-            aria-labelledby="demo-row-radio-buttons-group-label"
-            name="row-radio-buttons-group"
-            value={selectedPropertyType}
-            onChange={handlePropertyTypeChange}
-          >
-            {propertyType.map((propertyType) => (
-              <Ui.FormControlLabel key={propertyType.id} value={propertyType.id} control={<Ui.Radio />} label={propertyType.label} />
-            ))}
-          </Ui.RadioGroup>
-        </Ui.FormControl>
-      </Ui.Grid>
-      {/* Sale Status */}
-      <Ui.Grid item xs={12} md={12} lg={12}>
-        <Ui.FormControl style={{ width: '100%', marginBottom: '10px' }}>
-          <Ui.FormLabel id="demo-row-radio-buttons-group-label">Sale Status</Ui.FormLabel>
-          <Ui.RadioGroup
-            row
-            aria-labelledby="demo-row-radio-buttons-group-label"
-            name="row-radio-buttons-group"
-            value={selectedSaleStatus}
-            onChange={handleSaleStatusChange}
-          >
-            {saleStatus.map((saleStatus) => (
-              <Ui.FormControlLabel key={saleStatus.id} value={saleStatus.id} control={<Ui.Radio />} label={saleStatus.label} />
-            ))}
-          </Ui.RadioGroup>
-        </Ui.FormControl>
+      
+      <Ui.Grid item xs={12}>
+        <Ui.Grid container spacing={2}>
+          {/* Lead Source */}
+          <Ui.Grid item xs={12} sm={4}>
+            <Ui.FormControl variant="standard" fullWidth>
+              <Ui.InputLabel id="lead-source-select-label">Lead Source</Ui.InputLabel>
+              <Ui.Select
+                labelId="lead-source-select-label"
+                id="lead-source-select"
+                value={selectedLeadSource}
+                onChange={handleLeadSourceChange}
+                label="Lead Source"
+              >
+                {leadSources.map((leadSource) => (
+                  <Ui.MenuItem key={leadSource.id} value={leadSource.id}>{leadSource.label}</Ui.MenuItem>
+                ))}
+              </Ui.Select>
+            </Ui.FormControl>
+          </Ui.Grid>
+
+          {/* Property Type */}
+          <Ui.Grid item xs={12} sm={4}>
+            <Ui.FormControl variant="standard" fullWidth>
+              <Ui.InputLabel id="property-type-select-label">Property Type</Ui.InputLabel>
+              <Ui.Select
+                labelId="property-type-select-label"
+                id="property-type-select"
+                value={selectedPropertyType}
+                onChange={handlePropertyTypeChange}
+                label="Property Type"
+              >
+                {propertyType.map((propertyType) => (
+                  <Ui.MenuItem key={propertyType.id} value={propertyType.id}>{propertyType.label}</Ui.MenuItem>
+                ))}
+              </Ui.Select>
+            </Ui.FormControl>
+          </Ui.Grid>
+
+          {/* Sale Status */}
+          <Ui.Grid item xs={12} sm={4}>
+            <Ui.FormControl variant="standard" fullWidth>
+              <Ui.InputLabel id="sale-status-select-label">Sale Status</Ui.InputLabel>
+              <Ui.Select
+                labelId="sale-status-select-label"
+                id="sale-status-select"
+                value={selectedSaleStatus}
+                onChange={handleSaleStatusChange}
+                label="Sale Status"
+              >
+                {saleStatus.map((saleStatus) => (
+                  <Ui.MenuItem key={saleStatus.id} value={saleStatus.id}>{saleStatus.label}</Ui.MenuItem>
+                ))}
+              </Ui.Select>
+            </Ui.FormControl>
+          </Ui.Grid>
+        </Ui.Grid>
       </Ui.Grid>
 
-      <Ui.Grid item container xs={12} spacing={2} direction="row">
+      <Ui.Grid item container xs={12} spacing={2} style={{ marginTop: '10px', marginBottom: '10px' }}>
         <Ui.Grid item>
           <Ui.Button 
             variant="contained" 
@@ -595,6 +616,11 @@ export const App: React.FC<EntryProps> = ({
         <Ui.Grid item>
           <Ui.Button variant="contained" color="primary" onClick={close}>
             Close App
+          </Ui.Button>
+        </Ui.Grid>
+        <Ui.Grid item>
+          <Ui.Button variant="contained" color="primary" onClick={openLoft47Deal} disabled={!loft47DealId}>
+            Open Loft47 Deal
           </Ui.Button>
         </Ui.Grid>
       </Ui.Grid>
