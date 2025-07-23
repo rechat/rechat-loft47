@@ -60,7 +60,7 @@ export const BrokerageDealsProfileAccessesService = {
         console.log('Deleted failed, response body:', data.statusText)
       }
     } catch (err) {
-      return { error: err }
+      console.error(err)
     }
   }
 }

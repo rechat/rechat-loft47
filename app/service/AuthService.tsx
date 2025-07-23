@@ -21,7 +21,6 @@ export const AuthService = {
           }
         })
       })
-      console.log('AuthService.signIn / data:', data)
       return data
     } catch (err) {
       return { error: err }
