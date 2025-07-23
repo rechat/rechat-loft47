@@ -18,7 +18,12 @@ api.interceptors.request.use(
       config.headers.Authorization = bearerToken;
       config.headers.Accept = 'application/vnd.api+json';
     }
-
+    console.log('--------------------------------')
+    console.log('URL:', config.url)
+    console.log('Method:', config.method)
+    console.log('Params:', config.params)
+    console.log('Data:', config.data)
+    console.log('Authorization:', config.headers.Authorization)
     return config;
   },
   (error) => {
