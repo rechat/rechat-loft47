@@ -24,11 +24,10 @@ export async function apiFetch(
       ? endpoint
       : BASE_URL + endpoint;
 
-  console.log('--------------------------------')
-  console.log('URL:', url)
-  console.log('Options:', options)
-  const res = await fetch(url, options);
-  console.log('Body:', res.body)
+  const res = await fetch(url, {
+    credentials: 'include',
+    ...options
+  })
 
   // Surface non-2xx as exceptions so calling code can catch them
   if (!res.ok) {

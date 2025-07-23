@@ -4,7 +4,9 @@ import api from '../../api';
 
 export async function retrieveBrokerages(req: Request, res: Response) {
   try {
-    const response = await api.get('/brokerages');
+    const response = await api.get('/brokerages', {
+      headers: { 'x-session-token': api.defaults.headers.common['x-session-token'] },
+    });
     return res.status(response.status).json(response.data);
 
   } catch (error) {

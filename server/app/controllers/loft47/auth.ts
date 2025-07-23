@@ -9,20 +9,16 @@ declare module 'express-session' {
   }
 }
 
-let bearerToken: string | null = null;
-
 // Add a request interceptor
 api.interceptors.request.use(
   (config) => {
-    if (bearerToken) {
-      config.headers.Authorization = bearerToken;
+    const token = (config as any).headers['x-session-token'];
+    if (token) {
+      config.headers.Authorization = token;
       config.headers.Accept = 'application/vnd.api+json';
     }
     console.log('--------------------------------')
     console.log('URL:', config.url)
-    console.log('Method:', config.method)
-    console.log('Params:', config.params)
-    console.log('Data:', config.data)
     console.log('Authorization:', config.headers.Authorization)
     return config;
   },
@@ -47,7 +43,11 @@ export async function signIn(req: Request, res: Response) {
       }
     );
 
-    bearerToken = response.headers['authorization'];
+    const token = response.headers['authorization'];
+    if (token) {
+      // Persist token for subsequent outbound requests made through the shared axios instance
+      api.defaults.headers.common['x-session-token'] = token;
+    }
 
     return res.status(response.status).json(response.data);
 
