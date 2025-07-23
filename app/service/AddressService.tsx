@@ -8,7 +8,7 @@ export const AddressService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   },
   updateAddress: async (address_id: string, address: any) => {
@@ -22,7 +22,7 @@ export const AddressService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   }
 }

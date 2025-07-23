@@ -2,6 +2,7 @@
 type ApiFetchOptions = RequestInit & { parseJson?: boolean }
 
 const BASE_URL = 'https://loft47.cluster.rechat.com'
+// const BASE_URL = 'http://localhost:8081'
 
 /**
  * A wrapper around the browser's fetch that automatically:

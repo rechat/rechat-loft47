@@ -44,8 +44,8 @@ export async function showMappingByLoft47DealId(req: Request, res: Response) {
 }
 
 export async function showMappingByRechatDealId(req: Request, res: Response) {
+  const { deal_id } = req.params
   try {
-    const { deal_id } = req.params
     const mapping = await getMappingByRechatDealId(deal_id)
     if (!mapping) {
       return res.status(404).json({ error: 'Mapping not found by rechat_deal_id' })

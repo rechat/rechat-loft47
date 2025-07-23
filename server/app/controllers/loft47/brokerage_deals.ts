@@ -27,7 +27,7 @@ export async function createDeal(req: Request, res: Response) {
   try {
     const { brokerage_id } = req.params
     const response = await api.post(`/brokerages/${brokerage_id}/deals`, req.body);
-    return res.status(response.status).json(response.data);
+    return res.status(response.status).json(response.data)
   } catch (err) {
     res.status(500).json({ error: 'createDeal error:' + err })
   }

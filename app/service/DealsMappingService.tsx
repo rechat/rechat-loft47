@@ -12,7 +12,7 @@ export const DealsMappingService = {
 
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   },
   getMappingById: async (id: string) => {
@@ -22,7 +22,7 @@ export const DealsMappingService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   },
   getMappingByLoft47DealId: async (loft47DealId: string) => {
@@ -32,7 +32,7 @@ export const DealsMappingService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   },
   getMappingByRechatDealId: async (rechatDealId: string) => {
@@ -42,7 +42,7 @@ export const DealsMappingService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   },
   createMapping: async (rechatDealId: string, loft47DealId: string) => {
@@ -56,7 +56,7 @@ export const DealsMappingService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   }
 }

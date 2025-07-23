@@ -5,12 +5,13 @@ import api from "../../api";
 
 export async function getBrokerageProfiles(req: Request, res: Response) {
   const { brokerage_id } = req.params
-  const { email, search } = req.query
+  const { email, search, type } = req.query
   try {
     const response = await api.get(`/brokerages/${brokerage_id}/profiles`, {
       params: {
         ...(email && { 'filter[email][in]': email }),
-        ...(search && { 'filter[search]': search })
+        ...(search && { 'filter[search]': search }),
+        ...(type && { 'filter[type][in]': type })
       }
     });
     return res.status(response.status).json(response.data);

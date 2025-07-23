@@ -2,6 +2,7 @@ import { apiFetch } from '@libs/apiFetch'
 
 export const BrokerageProfilesService = {
   getBrokerageProfiles: async (brokerage_id: string, filters: any) => {
+    console.log('getBrokerageProfiles / filters:', filters)
     try {
       const params = new URLSearchParams(filters);
       const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/profiles?${params}`, {
@@ -9,7 +10,7 @@ export const BrokerageProfilesService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   },
   createBrokerageProfile: async (brokerage_id: string, profile: any) => {
@@ -23,7 +24,7 @@ export const BrokerageProfilesService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   },
   updateBrokerageProfile: async (brokerage_id: string, profile_id: string, profile: any) => {
@@ -37,7 +38,7 @@ export const BrokerageProfilesService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   }
 }

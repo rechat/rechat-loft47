@@ -10,13 +10,9 @@ export const ConfigService = {
         method: 'GET',
         credentials: 'include'
       })
-      return data as {
-        LOFT47_EMAIL: string
-        LOFT47_PASSWORD: string
-      }
+      return data
     } catch (err) {
-      console.error(err)
-      return null
+      return { error: err }
     }
   }
 } 

@@ -8,7 +8,7 @@ export const BrokerageDealsProfileAccessesService = {
       })
       return data
     } catch (err) {
-      console.error(err)
+      return { error: err }
     }
   },
   retrieveBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string) => {
@@ -18,7 +18,7 @@ export const BrokerageDealsProfileAccessesService = {
       })
       return data
     } catch (err) {
-      console.error(err)
+      return { error: err }
     }
   },
   createBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access: any) => {
@@ -32,7 +32,7 @@ export const BrokerageDealsProfileAccessesService = {
       })
       return data
     } catch (err) {
-      console.error(err)
+      return { error: err }
     }
   },
   updateBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string, profile_access: any) => {
@@ -46,7 +46,7 @@ export const BrokerageDealsProfileAccessesService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   },
   deleteBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string) => { 
@@ -60,7 +60,7 @@ export const BrokerageDealsProfileAccessesService = {
         console.log('Deleted failed, response body:', data.statusText)
       }
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   }
 }

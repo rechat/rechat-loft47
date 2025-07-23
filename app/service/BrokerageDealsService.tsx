@@ -8,7 +8,7 @@ export const BrokerageDealsService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   },
   getBrokerageDeal: async (brokerage_id: string, deal_id: string) => {
@@ -18,7 +18,7 @@ export const BrokerageDealsService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   },
   createDeal: async (brokerage_id: string, deal: any) => {
@@ -32,7 +32,7 @@ export const BrokerageDealsService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   },
   updateDeal: async (brokerage_id: string, loft47DealId: string, deal: any) => {
@@ -46,7 +46,7 @@ export const BrokerageDealsService = {
       })
       return data
     } catch (err) {
-      console.error(err);
+      return { error: err }
     }
   }
 }
