@@ -437,14 +437,16 @@ export const App: React.FC<EntryProps> = ({
     }
 
     const mapping = await DealsMappingService.getMappingByRechatDealId(RechatDeal.id)
-    if (!mapping.error) {
-      setMessage('Rechat Deal exists in Loft47. Updating deal in Loft47...')
-      showMessage()
-      await updateMapping(mapping.loft47_deal_id, tempLoft47Deal)
-    } else {
+    if (mapping.error) {
+      console.log('mapping:', mapping.error)
+    } else if (mapping.notFound) {
       setMessage('Rechat Deal doesn\'t exist in Loft47. Creating deal in Loft47...')
       showMessage()
       await createMapping(tempLoft47Deal)
+    } else {
+      setMessage('Rechat Deal exists in Loft47. Updating deal in Loft47...')
+      showMessage()
+      await updateMapping(mapping.loft47_deal_id, tempLoft47Deal)
     }
     setIsLoading(false)
   }

@@ -21,7 +21,10 @@ export const DealsMappingService = {
         method: 'GET'
       })
       return data
-    } catch (err) {
+    } catch (err: any) {
+      if (err.message.startsWith('404')) {
+        return { notFound: true }
+      }
       return { error: err }
     }
   },
@@ -31,7 +34,10 @@ export const DealsMappingService = {
         method: 'GET'
       })
       return data
-    } catch (err) {
+    } catch (err: any) {
+      if (err.message.startsWith('404')) {
+        return { notFound: true }
+      }
       return { error: err }
     }
   },
@@ -41,7 +47,10 @@ export const DealsMappingService = {
         method: 'GET'
       })
       return data
-    } catch (err) {
+    } catch (err: any) {
+      if (err.message.startsWith('404')) {
+        return { notFound: true }
+      }
       return { error: err }
     }
   },
