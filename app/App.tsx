@@ -24,6 +24,7 @@ import {
 } from './core/utils'
 import { AddressService } from './service/AddressService'
 import { ConfigService } from './service/ConfigService'
+import PeopleSyncStatus from './components/PeopleSyncStatus'
 
 export const App: React.FC<EntryProps> = ({
   models: { deal: RechatDeal, roles, user },
@@ -49,8 +50,6 @@ export const App: React.FC<EntryProps> = ({
 }) => {
   ReactUse.useDebounce(() => {}, 1000, [])
 
-  const authDataRef = React.useRef<any>(null)
-  const [isAuthenticated, setIsAuthenticated] = React.useState(false)
   const loft47BrokeragesRef = React.useRef<Loft47Brokerage[]>([])
   // Message Snackbar
   const [open, setOpen] = React.useState(false);
@@ -60,6 +59,7 @@ export const App: React.FC<EntryProps> = ({
   const loft47PrimaryAgentRef = React.useRef<any>(null)
   const [loft47DealId, setLoft47DealId] = React.useState('')
   const [loft47Url, setLoft47Url] = React.useState('')
+  const [syncStatus, setSyncStatus] = React.useState<string | null>(null)
 
   const [selectedDealType,      setSelectedDealType]      = usePersistentState('dealType',      '')
   const [selectedDealSubType,   setSelectedDealSubType]   = usePersistentState('dealSubType',   '')
@@ -84,13 +84,11 @@ export const App: React.FC<EntryProps> = ({
   }
 
   const signInOnce = async () => {
-    setIsLoading(true)
     const env = await ConfigService.getPublicEnv()
     if (env.error) {
       setMessage('Loft47 credentials not provided by backend')
       showMessage()
-      setIsLoading(false)
-      return
+      return false
     }
 
     setLoft47Url(env.LOFT47_URL ?? '')
@@ -99,14 +97,9 @@ export const App: React.FC<EntryProps> = ({
       console.log('authData:', authData.error)
       setMessage('Sign in failed. Please try again later.')
       showMessage()
-      authDataRef.current = null
-      setIsAuthenticated(false)
-      setIsLoading(false)
-      return
+      return false
     }
-    authDataRef.current = authData
-    setIsAuthenticated(true)
-    setIsLoading(false)
+    return true
   }
 
   const retrieveBrokerages = async () => {
@@ -264,7 +257,7 @@ export const App: React.FC<EntryProps> = ({
   }
 
   const updateDealPeople = async (loft47Deal: LoftDeal) => {
-    // Sync buyers
+    setSyncStatus('Syncing buyers...')
     await syncPeople(
       getBuyers(roles),
       getBuyersEmails,
@@ -273,7 +266,7 @@ export const App: React.FC<EntryProps> = ({
       loft47Deal
     )
 
-    // Sync sellers
+    setSyncStatus('Syncing sellers...')
     await syncPeople(
       getSellers(roles),
       getSellersEmails,
@@ -281,6 +274,8 @@ export const App: React.FC<EntryProps> = ({
       'list',
       loft47Deal
     )
+    setSyncStatus('Sync completed')
+    setTimeout(() => setSyncStatus(null), 3000)
   }
 
   /**
@@ -380,6 +375,12 @@ export const App: React.FC<EntryProps> = ({
 
   const syncWithLoft47 = async () => {
     setIsLoading(true)
+    const isAuthenticated = await signInOnce()
+    if (!isAuthenticated) {
+      setIsLoading(false)
+      return
+    }
+
     await retrieveBrokerages()
     if (loft47BrokeragesRef.current.length === 0) {
       setMessage('No brokerages found. Please try again later.')
@@ -433,16 +434,15 @@ export const App: React.FC<EntryProps> = ({
       }
     }
 
+    setSyncStatus('Checking if Rechat Deal exists in Loft47...')
     const mapping = await DealsMappingService.getMappingByRechatDealId(RechatDeal.id)
     if (mapping.error) {
       console.log('mapping:', mapping.error)
     } else if (mapping.notFound) {
-      setMessage('Rechat Deal doesn\'t exist in Loft47. Creating deal in Loft47...')
-      showMessage()
+      setSyncStatus('Creating Rechat Deal in Loft47...')
       await createMapping(tempLoft47Deal)
     } else {
-      setMessage('Rechat Deal exists in Loft47. Updating deal in Loft47...')
-      showMessage()
+      setSyncStatus('Updating Rechat Deal in Loft47...')
       await updateMapping(mapping.loft47_deal_id, tempLoft47Deal)
     }
     setIsLoading(false)
@@ -472,21 +472,15 @@ export const App: React.FC<EntryProps> = ({
     setOpen(false);
   };
 
-  React.useEffect(() => {
-    if (!authDataRef.current) {
-      signInOnce()
-    }
-  }, [])
-
   return (
     <Ui.Grid container spacing={2}>
       <Ui.CircularProgress style={{ display: 'absolute', position: 'absolute', top: '50%', left: '50%' }} hidden={!isLoading} />
+      <PeopleSyncStatus status={syncStatus} />
       <Ui.Grid item xs={12} md={12} lg={12}>
         <DealContextList
           contexts={DealContexts}
           getDealContext={getDealContext}
         />
-        
       </Ui.Grid>
       
       <DealSelectors
@@ -504,7 +498,6 @@ export const App: React.FC<EntryProps> = ({
 
       <ActionButtons
         isLoading={isLoading}
-        isAuthenticated={isAuthenticated}
         onSync={syncWithLoft47}
         onClose={close}
         onOpenDeal={openLoft47Deal}

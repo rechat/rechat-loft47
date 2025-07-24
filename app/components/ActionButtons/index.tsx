@@ -3,7 +3,6 @@ import Ui from '@libs/material-ui'
 
 interface Props {
   isLoading: boolean
-  isAuthenticated: boolean
   onSync: () => void
   onClose: () => void
   onOpenDeal: () => void
@@ -12,7 +11,6 @@ interface Props {
 
 const ActionButtons: React.FC<Props> = ({
   isLoading,
-  isAuthenticated,
   onSync,
   onClose,
   onOpenDeal,
@@ -23,7 +21,7 @@ const ActionButtons: React.FC<Props> = ({
       <Ui.Button
         variant="contained"
         color="primary"
-        disabled={isLoading || !isAuthenticated}
+        disabled={isLoading}
         onClick={onSync}
       >
         Sync with Loft47
