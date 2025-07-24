@@ -21,7 +21,7 @@ export const BrokerageDealsProfileAccessesService = {
       return { error: err }
     }
   },
-  createBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access: any) => {
+  createBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access: ProfileAccess) => {
     try {
       const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses`, {
         method: 'POST',
@@ -35,7 +35,7 @@ export const BrokerageDealsProfileAccessesService = {
       return { error: err }
     }
   },
-  updateBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string, profile_access: any) => {
+  updateBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string, profile_access: ProfileAccess) => {
     try {
       const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals/${deal_id}/accesses/${profile_access_id}`, {
         method: 'PATCH',

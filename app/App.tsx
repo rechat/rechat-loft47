@@ -28,13 +28,6 @@ import {
 import { AddressService } from './service/AddressService'
 import { ConfigService } from './service/ConfigService'
 
-
-// Minimal type for a Loft47 brokerage entry (extend as needed)
-type Loft47Brokerage = {
-  id: string
-  [key: string]: unknown
-}
-
 export const App: React.FC<EntryProps> = ({
   models: { deal: RechatDeal, roles, user },
   api: {
@@ -69,6 +62,7 @@ export const App: React.FC<EntryProps> = ({
   const [isLoading, setIsLoading] = React.useState(false)
   const loft47PrimaryAgentRef = React.useRef<any>(null)
   const [loft47DealId, setLoft47DealId] = React.useState('')
+  const [loft47Url, setLoft47Url] = React.useState('')
 
   const [selectedDealType,      setSelectedDealType]      = usePersistentState('dealType',      '')
   const [selectedDealSubType,   setSelectedDealSubType]   = usePersistentState('dealSubType',   '')
@@ -102,9 +96,11 @@ export const App: React.FC<EntryProps> = ({
       return
     }
 
+    setLoft47Url(env.LOFT47_URL ?? '')
     const authData = await AuthService.signIn(env.LOFT47_EMAIL, env.LOFT47_PASSWORD)
     if (authData.error) {
-      setMessage('Error signing in. Please try again later.')
+      console.log('authData:', authData.error)
+      setMessage('Sign in failed. Please try again later.')
       showMessage()
       authDataRef.current = null
       setIsAuthenticated(false)
@@ -117,16 +113,12 @@ export const App: React.FC<EntryProps> = ({
   }
 
   const retrieveBrokerages = async () => {
-    setIsLoading(true)
     const brokeragesData = await BrokeragesService.retrieveBrokerages()
     if (brokeragesData.error) {
-      setMessage('Error retrieving brokerages: ' + brokeragesData.error)
-      showMessage()
-      setIsLoading(false)
+      console.log('brokeragesData:', brokeragesData.error)
       return
     }
     loft47BrokeragesRef.current = brokeragesData.data
-    setIsLoading(false)
   }
 
   const setMainAgent = async () => {
@@ -136,8 +128,7 @@ export const App: React.FC<EntryProps> = ({
         'email': mainAgent.email
       })
       if (profilesData.error) {
-        setMessage('Error getting main agent profiles: ' + profilesData.error)
-        showMessage()
+        console.log('profilesData:', profilesData.error)
         return
       }
 
@@ -167,26 +158,22 @@ export const App: React.FC<EntryProps> = ({
     }
   }
 
-  const createMapping = async (tempLoft47Deal: any) => {
-    setIsLoading(true)
+  const createMapping = async (tempLoft47Deal: LoftDeal) => {
     if (loft47BrokeragesRef.current.length > 0) {
       const newLoft47Deal = await BrokerageDealsService.createDeal(loft47BrokeragesRef.current[0].id, tempLoft47Deal)
 
       if (newLoft47Deal.error) {
-        setMessage('Create deal in Loft47 failed!')
-        showMessage()
-        setIsLoading(false)
+        console.log('newLoft47Deal:', newLoft47Deal.error)
       } else {
         setLoft47DealId(newLoft47Deal.data.id)
 
         const mapping = await DealsMappingService.createMapping(RechatDeal.id, newLoft47Deal.data.id)
         if (!mapping.error) {
           setMessage('Rechat Deal(' + RechatDeal?.id + ') was successfully created in Loft47!')
+          showMessage()
         } else {
-          setMessage('Error creating mapping: ' + mapping.error)
+          console.log('mapping:', mapping.error)
         }
-        showMessage()
-        setIsLoading(false)
 
         await updateLoft47DealAddress(newLoft47Deal)
         await updateDealPeople(newLoft47Deal)
@@ -194,26 +181,22 @@ export const App: React.FC<EntryProps> = ({
     }
   }
 
-  const updateMapping = async (_loft47DealId: string, tempLoft47Deal: any) => {
-    setIsLoading(true)
+  const updateMapping = async (_loft47DealId: string, tempLoft47Deal: LoftDeal) => {
     const updatedLoft47Deal = await BrokerageDealsService.updateDeal(loft47BrokeragesRef.current[0].id ?? '', _loft47DealId, tempLoft47Deal)
     if (updatedLoft47Deal.error) {
-      setMessage('Error updating deal in Loft47: ' + updatedLoft47Deal.error)
-      showMessage()
-      setIsLoading(false)
+      console.log('updatedLoft47Deal:', updatedLoft47Deal.error)
       return
     }
     setLoft47DealId(updatedLoft47Deal.data.id)
     
     setMessage('Rechat Deal(' + RechatDeal?.id + ') was successfully updated in Loft47!')
     showMessage()
-    setIsLoading(false)
 
     await updateLoft47DealAddress(updatedLoft47Deal)
     await updateDealPeople(updatedLoft47Deal)
   }
 
-  const updateLoft47DealAddress = async (loft47Deal: any) => {
+  const updateLoft47DealAddress = async (loft47Deal: LoftDeal) => {
     const streetAddress = getDealContext('street_address')
     if (!streetAddress) {
       setMessage('No address set for this deal! Rechat Deal Title is set in Rechat.')
@@ -234,9 +217,7 @@ export const App: React.FC<EntryProps> = ({
     }
     const address = await AddressService.updateAddress(addressId, tempAddress)
     if (address.error) {
-      setMessage('Error updating address in Loft47: ' + address.error)
-      showMessage()
-      return
+      console.log('address:', address.error)
     }
   }
 
@@ -285,7 +266,7 @@ export const App: React.FC<EntryProps> = ({
     return true
   }
 
-  const updateDealPeople = async (loft47Deal: any) => {
+  const updateDealPeople = async (loft47Deal: LoftDeal) => {
     // Sync buyers
     await syncPeople(
       getBuyers(roles),
@@ -311,8 +292,8 @@ export const App: React.FC<EntryProps> = ({
   const syncPeople = async (
     people: any[],
     getEmailsFn: (people: any[]) => string,
-    role: 'buyer' | 'seller',
-    side: 'sell' | 'list',
+    role: Role,
+    side: Side,
     loft47Deal: any
   ) => {
     const emails = getEmailsFn(people)
@@ -324,8 +305,7 @@ export const App: React.FC<EntryProps> = ({
         { email: emails, type: 'Profile' }
       )
       if (profilesResp.error) {
-        setMessage(`Error getting ${role} profiles: ` + profilesResp.error)
-        showMessage()
+        console.log('profilesResp:', profilesResp.error)
         return
       }
     }
@@ -402,22 +382,25 @@ export const App: React.FC<EntryProps> = ({
   }
 
   const syncWithLoft47 = async () => {
+    setIsLoading(true)
     await retrieveBrokerages()
     if (loft47BrokeragesRef.current.length === 0) {
       setMessage('No brokerages found. Please try again later.')
       showMessage()
+      setIsLoading(false)
       return
     }
     await setMainAgent()
     if (!checkIfAllContextsAreFilled()) {
+      setIsLoading(false)
       return
     }
 
-    const block = getDealContext('block_number')
+    const block = getDealContext('block_number')?.text
     const closedAt = toISOWithOffset(new Date((getDealContext('closing_date')?.date ?? 0) * 1000))
-    const lot = getDealContext('lot_number')
-    const mlsNumber = getDealContext('mls_number')
-    const salesPrice = getDealContext('sales_price')
+    const lot = getDealContext('lot_number')?.text
+    const mlsNumber = getDealContext('mls_number')?.text
+    const salesPrice = getDealContext('sales_price')?.text
     const updatedAt = RechatDeal.updated_at
     const possessionAt = toISOWithOffset(new Date((getDealContext('possession_date')?.date ?? 0) * 1000))
     const mainAgent = getMainAgent(roles, RechatDeal)
@@ -431,11 +414,11 @@ export const App: React.FC<EntryProps> = ({
           ...(block && { block }),
           adjustmentAt: toISOWithOffset(new Date((updatedAt ?? 0) * 1000)),
           ...(closedAt && { closedAt }),
-          dealSubType: selectedDealSubType,
-          dealType: selectedDealType,
-          leadSource: selectedLeadSource,
-          propertyType: selectedPropertyType,
-          saleStatus: selectedSaleStatus,
+          dealSubType: selectedDealSubType as DealSubType,
+          dealType: selectedDealType as DealType,
+          leadSource: selectedLeadSource as LeadSource,
+          propertyType: selectedPropertyType as PropertyType,
+          saleStatus: selectedSaleStatus as SaleStatus,
           exclusive: !RechatDeal.listing,
           externalTransactionId: RechatDeal.id,
           ...(RechatDeal.brand.brand_type === 'Office' && { officeId: RechatDeal.brand.parent[0] }),
@@ -446,16 +429,14 @@ export const App: React.FC<EntryProps> = ({
           ...(owningSide && { owningSide }),
           ...(mainAgent && { ownerName: mainAgent.legal_full_name }),
           ...(possessionAt && { possessionAt }),
-          ...(salesPrice && { sellPrice: salesPrice.text }),
+          ...(salesPrice && { sellPrice: salesPrice }),
           ...(closedAt && { soldAt: closedAt }),
           teamDeal: RechatDeal.brand.brand_type === 'Team',
         }
       }
     }
 
-    setIsLoading(true)
     const mapping = await DealsMappingService.getMappingByRechatDealId(RechatDeal.id)
-    setIsLoading(false)
     if (!mapping.error) {
       setMessage('Rechat Deal(' + RechatDeal?.id + ') exists in Loft47. Updating deal in Loft47...')
       showMessage()
@@ -465,10 +446,16 @@ export const App: React.FC<EntryProps> = ({
       showMessage()
       await createMapping(tempLoft47Deal)
     }
+    setIsLoading(false)
   }
 
   const openLoft47Deal = () => {
-    window.open(`https://staging.loft47.com/brokerages/${loft47BrokeragesRef.current[0].id}/deals/${loft47DealId}`, '_blank')
+    if (loft47Url) {
+      window.open(`${loft47Url}/brokerages/${loft47BrokeragesRef.current[0].id}/deals/${loft47DealId}`, '_blank')
+    } else {
+      setMessage('Loft47 URL not set. Please contact support.')
+      showMessage()
+    }
   }
 
   const showMessage = () => {

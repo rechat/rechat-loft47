@@ -21,7 +21,7 @@ export const BrokerageDealsService = {
       return { error: err }
     }
   },
-  createDeal: async (brokerage_id: string, deal: any) => {
+  createDeal: async (brokerage_id: string, deal: LoftDeal) => {
     try {
       const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals`, {
         method: 'POST',
@@ -35,7 +35,7 @@ export const BrokerageDealsService = {
       return { error: err }
     }
   },
-  updateDeal: async (brokerage_id: string, loft47DealId: string, deal: any) => {
+  updateDeal: async (brokerage_id: string, loft47DealId: string, deal: LoftDeal) => {
     try {
       const data = await apiFetch(`/loft47/brokerages/${brokerage_id}/deals/${loft47DealId}`, {
         method: 'PATCH',

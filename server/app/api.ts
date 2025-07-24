@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.STAGING_LOFT47_API_URL
+const API_URL = process.env.LOFT47_API_URL
 
 // Create an Axios instance
 const api = axios.create({

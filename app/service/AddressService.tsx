@@ -11,7 +11,7 @@ export const AddressService = {
       return { error: err }
     }
   },
-  updateAddress: async (address_id: string, address: any) => {
+  updateAddress: async (address_id: string, address: Address) => {
     try {
       const data = await apiFetch(`/loft47/addresses/${address_id}`, {
         method: 'PATCH',

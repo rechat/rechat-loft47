@@ -8,6 +8,7 @@ import { Request, Response } from 'express'
 export const getPublicEnv = (_req: Request, res: Response) => {
   res.json({
     LOFT47_EMAIL: process.env.LOFT47_EMAIL || '',
-    LOFT47_PASSWORD: process.env.LOFT47_PASSWORD || ''
+    LOFT47_PASSWORD: process.env.LOFT47_PASSWORD || '',
+    LOFT47_URL: process.env.LOFT47_URL || ''
   })
-} 
+}

@@ -29,11 +29,10 @@ export async function apiFetch(
     ...options
   })
 
-  // Surface non-2xx as exceptions so calling code can catch them
   if (!res.ok) {
-    const errText = await res.text().catch(() => res.statusText);
-    throw new Error(`${res.status} ${res.statusText}: ${errText}`);
+    const errText = await res.text().catch(() => res.statusText)
+    throw new Error(`${res.status} ${res.statusText}: ${errText}`)
   }
 
-  return parseJson ? res.json() : res;   // default: parsed JSON
+  return parseJson ? res.json() : res
 }
