@@ -169,7 +169,7 @@ export const App: React.FC<EntryProps> = ({
 
         const mapping = await DealsMappingService.createMapping(RechatDeal.id, newLoft47Deal.data.id)
         if (!mapping.error) {
-          setMessage('Rechat Deal(' + RechatDeal?.id + ') was successfully created in Loft47!')
+          setMessage('Rechat Deal was successfully created in Loft47!')
           showMessage()
         } else {
           console.log('mapping:', mapping.error)
@@ -189,7 +189,7 @@ export const App: React.FC<EntryProps> = ({
     }
     setLoft47DealId(updatedLoft47Deal.data.id)
     
-    setMessage('Rechat Deal(' + RechatDeal?.id + ') was successfully updated in Loft47!')
+    setMessage('Rechat Deal was successfully updated in Loft47!')
     showMessage()
 
     await updateLoft47DealAddress(updatedLoft47Deal)
@@ -438,11 +438,11 @@ export const App: React.FC<EntryProps> = ({
 
     const mapping = await DealsMappingService.getMappingByRechatDealId(RechatDeal.id)
     if (!mapping.error) {
-      setMessage('Rechat Deal(' + RechatDeal?.id + ') exists in Loft47. Updating deal in Loft47...')
+      setMessage('Rechat Deal exists in Loft47. Updating deal in Loft47...')
       showMessage()
       await updateMapping(mapping.loft47_deal_id, tempLoft47Deal)
     } else {
-      setMessage('Rechat Deal(' + RechatDeal?.id + ') does not exist in Loft47. Creating deal in Loft47...')
+      setMessage('Rechat Deal doesn\'t exist in Loft47. Creating deal in Loft47...')
       showMessage()
       await createMapping(tempLoft47Deal)
     }
