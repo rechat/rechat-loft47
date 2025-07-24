@@ -2,6 +2,7 @@ import Ui from '@libs/material-ui'
 import React from '@libs/react'
 import ReactUse from '@libs/react-use'
 import DealContextList from './components/DealContextList'
+import SelectField from './components/SelectField'
 import { AuthService } from './service/AuthService'
 import { BrokeragesService } from './service/BrokeragesService'
 import { BrokerageDealsService } from './service/BrokerageDealsService'
@@ -494,99 +495,54 @@ export const App: React.FC<EntryProps> = ({
       
       <Ui.Grid item xs={12}>
         <Ui.Grid container spacing={2}>
-          {/* Deal Type */}
-          <Ui.Grid item xs={12} sm={6}>
-            <Ui.FormControl variant="standard" fullWidth>
-              <Ui.InputLabel id="deal-type-select-label">Deal Type</Ui.InputLabel>
-              <Ui.Select
-                labelId="deal-type-select-label"
-                id="deal-type-select"
-                value={selectedDealType}
-                onChange={handleDealTypeChange}
-                label="Deal Type"
-              >
-                {dealTypes.map((dealType) => (
-                  <Ui.MenuItem key={dealType.id} value={dealType.id}>{dealType.label}</Ui.MenuItem>
-                ))}
-              </Ui.Select>
-            </Ui.FormControl>
-          </Ui.Grid>
+          <SelectField
+            label="Deal Type"
+            id="deal-type-select"
+            value={selectedDealType}
+            onChange={handleDealTypeChange}
+            options={dealTypes}
+            sm={6}
+          />
 
-          {/* Deal Sub Type */}
-          <Ui.Grid item xs={12} sm={6}>
-            <Ui.FormControl variant="standard" fullWidth>
-              <Ui.InputLabel id="deal-sub-type-select-label">Deal Sub Type</Ui.InputLabel>
-              <Ui.Select
-                labelId="deal-sub-type-select-label"
-                id="deal-sub-type-select"
-                value={selectedDealSubType}
-                onChange={handleDealSubTypeChange}
-                label="Deal Sub Type"
-              >
-                {dealSubTypes.map((dealSubType) => (
-                  <Ui.MenuItem key={dealSubType.id} value={dealSubType.id}>{dealSubType.label}</Ui.MenuItem>
-                ))}
-              </Ui.Select>
-            </Ui.FormControl>
-          </Ui.Grid>
+          <SelectField
+            label="Deal Sub Type"
+            id="deal-sub-type-select"
+            value={selectedDealSubType}
+            onChange={handleDealSubTypeChange}
+            options={dealSubTypes}
+            sm={6}
+          />
         </Ui.Grid>
       </Ui.Grid>
       
       <Ui.Grid item xs={12}>
         <Ui.Grid container spacing={2}>
-          {/* Lead Source */}
-          <Ui.Grid item xs={12} sm={4}>
-            <Ui.FormControl variant="standard" fullWidth>
-              <Ui.InputLabel id="lead-source-select-label">Lead Source</Ui.InputLabel>
-              <Ui.Select
-                labelId="lead-source-select-label"
-                id="lead-source-select"
-                value={selectedLeadSource}
-                onChange={handleLeadSourceChange}
-                label="Lead Source"
-              >
-                {leadSources.map((leadSource) => (
-                  <Ui.MenuItem key={leadSource.id} value={leadSource.id}>{leadSource.label}</Ui.MenuItem>
-                ))}
-              </Ui.Select>
-            </Ui.FormControl>
-          </Ui.Grid>
+          <SelectField
+            label="Lead Source"
+            id="lead-source-select"
+            value={selectedLeadSource}
+            onChange={handleLeadSourceChange}
+            options={leadSources}
+            sm={4}
+          />
 
-          {/* Property Type */}
-          <Ui.Grid item xs={12} sm={4}>
-            <Ui.FormControl variant="standard" fullWidth>
-              <Ui.InputLabel id="property-type-select-label">Property Type</Ui.InputLabel>
-              <Ui.Select
-                labelId="property-type-select-label"
-                id="property-type-select"
-                value={selectedPropertyType}
-                onChange={handlePropertyTypeChange}
-                label="Property Type"
-              >
-                {propertyType.map((propertyType) => (
-                  <Ui.MenuItem key={propertyType.id} value={propertyType.id}>{propertyType.label}</Ui.MenuItem>
-                ))}
-              </Ui.Select>
-            </Ui.FormControl>
-          </Ui.Grid>
+          <SelectField
+            label="Property Type"
+            id="property-type-select"
+            value={selectedPropertyType}
+            onChange={handlePropertyTypeChange}
+            options={propertyType}
+            sm={4}
+          />
 
-          {/* Sale Status */}
-          <Ui.Grid item xs={12} sm={4}>
-            <Ui.FormControl variant="standard" fullWidth>
-              <Ui.InputLabel id="sale-status-select-label">Sale Status</Ui.InputLabel>
-              <Ui.Select
-                labelId="sale-status-select-label"
-                id="sale-status-select"
-                value={selectedSaleStatus}
-                onChange={handleSaleStatusChange}
-                label="Sale Status"
-              >
-                {saleStatus.map((saleStatus) => (
-                  <Ui.MenuItem key={saleStatus.id} value={saleStatus.id}>{saleStatus.label}</Ui.MenuItem>
-                ))}
-              </Ui.Select>
-            </Ui.FormControl>
-          </Ui.Grid>
+          <SelectField
+            label="Sale Status"
+            id="sale-status-select"
+            value={selectedSaleStatus}
+            onChange={handleSaleStatusChange}
+            options={saleStatus}
+            sm={4}
+          />
         </Ui.Grid>
       </Ui.Grid>
 
