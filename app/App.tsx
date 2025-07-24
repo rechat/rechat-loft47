@@ -2,7 +2,8 @@ import Ui from '@libs/material-ui'
 import React from '@libs/react'
 import ReactUse from '@libs/react-use'
 import DealContextList from './components/DealContextList'
-import SelectField from './components/SelectField'
+import DealSelectors from './components/DealSelectors'
+import ActionButtons from './components/ActionButtons'
 import { AuthService } from './service/AuthService'
 import { BrokeragesService } from './service/BrokeragesService'
 import { BrokerageDealsService } from './service/BrokerageDealsService'
@@ -11,11 +12,6 @@ import { DealsMappingService } from './service/DealsMappingService'
 import { BrokerageProfilesService } from './service/BrokerageProfilesService'
 import { usePersistentState } from './hooks/usePersistentState'
 import { 
-  dealSubTypes,
-  dealTypes,
-  leadSources,
-  propertyType,
-  saleStatus,
   DealContexts,
   toISOWithOffset,
   getMainAgent,
@@ -493,81 +489,28 @@ export const App: React.FC<EntryProps> = ({
         
       </Ui.Grid>
       
-      <Ui.Grid item xs={12}>
-        <Ui.Grid container spacing={2}>
-          <SelectField
-            label="Deal Type"
-            id="deal-type-select"
-            value={selectedDealType}
-            onChange={handleDealTypeChange}
-            options={dealTypes}
-            sm={6}
-          />
+      <DealSelectors
+        selectedDealType={selectedDealType}
+        selectedDealSubType={selectedDealSubType}
+        selectedLeadSource={selectedLeadSource}
+        selectedPropertyType={selectedPropertyType}
+        selectedSaleStatus={selectedSaleStatus}
+        onDealTypeChange={handleDealTypeChange}
+        onDealSubTypeChange={handleDealSubTypeChange}
+        onLeadSourceChange={handleLeadSourceChange}
+        onPropertyTypeChange={handlePropertyTypeChange}
+        onSaleStatusChange={handleSaleStatusChange}
+      />
 
-          <SelectField
-            label="Deal Sub Type"
-            id="deal-sub-type-select"
-            value={selectedDealSubType}
-            onChange={handleDealSubTypeChange}
-            options={dealSubTypes}
-            sm={6}
-          />
-        </Ui.Grid>
-      </Ui.Grid>
-      
-      <Ui.Grid item xs={12}>
-        <Ui.Grid container spacing={2}>
-          <SelectField
-            label="Lead Source"
-            id="lead-source-select"
-            value={selectedLeadSource}
-            onChange={handleLeadSourceChange}
-            options={leadSources}
-            sm={4}
-          />
+      <ActionButtons
+        isLoading={isLoading}
+        isAuthenticated={isAuthenticated}
+        onSync={syncWithLoft47}
+        onClose={close}
+        onOpenDeal={openLoft47Deal}
+        canOpenDeal={!!loft47DealId}
+      />
 
-          <SelectField
-            label="Property Type"
-            id="property-type-select"
-            value={selectedPropertyType}
-            onChange={handlePropertyTypeChange}
-            options={propertyType}
-            sm={4}
-          />
-
-          <SelectField
-            label="Sale Status"
-            id="sale-status-select"
-            value={selectedSaleStatus}
-            onChange={handleSaleStatusChange}
-            options={saleStatus}
-            sm={4}
-          />
-        </Ui.Grid>
-      </Ui.Grid>
-
-      <Ui.Grid item container xs={12} spacing={2} style={{ marginTop: '10px', marginBottom: '10px' }}>
-        <Ui.Grid item>
-          <Ui.Button 
-            variant="contained" 
-            color="primary" 
-            disabled={isLoading || !isAuthenticated}
-            onClick={syncWithLoft47}
-          >
-            Sync with Loft47
-          </Ui.Button>
-        </Ui.Grid>
-        <Ui.Grid item>
-          <Ui.Button variant="contained" color="primary" onClick={close}>
-            Close App
-          </Ui.Button>
-        </Ui.Grid>
-        <Ui.Grid item>
-          <Ui.Button variant="contained" color="primary" onClick={openLoft47Deal} disabled={!loft47DealId}>
-            Open Loft47 Deal
-          </Ui.Button>
-        </Ui.Grid>
-      </Ui.Grid>
       <Ui.Snackbar
         open={open}
         autoHideDuration={5000}
