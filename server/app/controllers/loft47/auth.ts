@@ -17,9 +17,6 @@ api.interceptors.request.use(
       config.headers.Authorization = token;
       config.headers.Accept = 'application/vnd.api+json';
     }
-    console.log('--------------------------------')
-    console.log('URL:', config.url)
-    console.log('Authorization:', config.headers.Authorization)
     return config;
   },
   (error) => {

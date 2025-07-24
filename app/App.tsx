@@ -455,7 +455,6 @@ export const App: React.FC<EntryProps> = ({
 
     setIsLoading(true)
     const mapping = await DealsMappingService.getMappingByRechatDealId(RechatDeal.id)
-    console.log('syncWithLoft47 / mapping:', mapping)
     setIsLoading(false)
     if (!mapping.error) {
       setMessage('Rechat Deal(' + RechatDeal?.id + ') exists in Loft47. Updating deal in Loft47...')

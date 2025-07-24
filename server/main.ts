@@ -64,13 +64,8 @@ app.use(session({
   }
 }));
 
-
 app.use(routes)
 app.use(haltOnTimedout)
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.originalUrl}`);
-  next();
-});
 
 if (isDevelopment) {
   const config = require('../webpack.config').default
