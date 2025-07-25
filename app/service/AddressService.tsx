@@ -7,8 +7,8 @@ export const AddressService = {
         method: 'GET'
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   },
   updateAddress: async (address_id: string, address: Address) => {
@@ -21,8 +21,8 @@ export const AddressService = {
         body: JSON.stringify(address)
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   }
 }

@@ -12,8 +12,8 @@ export const BrokeragesService = {
         method: 'GET'
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   }
 }

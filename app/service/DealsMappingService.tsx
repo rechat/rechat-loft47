@@ -11,8 +11,8 @@ export const DealsMappingService = {
       })
 
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   },
   getMappingById: async (id: string) => {
@@ -22,10 +22,10 @@ export const DealsMappingService = {
       })
       return data
     } catch (err: any) {
-      if (err.message.startsWith('404')) {
+      if (err.status === 404) {
         return { notFound: true }
       }
-      return { error: err }
+      return { status: err.status, error: err.body.error }
     }
   },
   getMappingByLoft47DealId: async (loft47DealId: string) => {
@@ -35,10 +35,10 @@ export const DealsMappingService = {
       })
       return data
     } catch (err: any) {
-      if (err.message.startsWith('404')) {
+      if (err.status === 404) {
         return { notFound: true }
       }
-      return { error: err }
+      return { status: err.status, error: err.body.error }
     }
   },
   getMappingByRechatDealId: async (rechatDealId: string) => {
@@ -48,10 +48,10 @@ export const DealsMappingService = {
       })
       return data
     } catch (err: any) {
-      if (err.message.startsWith('404')) {
+      if (err.status === 404) {
         return { notFound: true }
       }
-      return { error: err }
+      return { status: err.status, error: err.body.error }
     }
   },
   createMapping: async (rechatDealId: string, loft47DealId: string) => {
@@ -64,8 +64,8 @@ export const DealsMappingService = {
         body: JSON.stringify({ rechat_deal_id: rechatDealId, loft47_deal_id: loft47DealId })
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   }
 }

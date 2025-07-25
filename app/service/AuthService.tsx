@@ -10,7 +10,6 @@ export const AuthService = {
     try {
       const data = await apiFetch('/loft47/sign_in', {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -22,8 +21,8 @@ export const AuthService = {
         })
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   }
 }

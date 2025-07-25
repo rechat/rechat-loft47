@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import api from '../../api'
+import api, { handleAxiosError } from '../../api'
 
 import 'express-session'        // keep this line
 
@@ -48,14 +48,8 @@ export async function signIn(req: Request, res: Response) {
 
     return res.status(response.status).json(response.data);
 
-  } catch (error) {
-    console.error('Error logging in:', error.message);
-
-    // Forward error from backend or a fallback message
-    if (error.response) {
-      res.status(error.response.status).json(error.response.data);
-    } else {
-      res.status(500).json({ message: 'Internal server error' });
-    }
+  } catch (err: any) {
+    const error = handleAxiosError(err)
+    return res.status(error.status).json({ error: error.message })
   }
 }

@@ -30,8 +30,11 @@ export async function apiFetch(
   })
 
   if (!res.ok) {
-    const errText = await res.text().catch(() => res.statusText)
-    throw new Error(`${res.status} ${res.statusText}: ${errText}`)
+    const body = await res.clone().json().catch(() => null) // try parse JSON
+    const err = new Error(res.statusText) as any
+    err.status = res.status
+    err.body = body
+    throw err
   }
 
   return parseJson ? res.json() : res

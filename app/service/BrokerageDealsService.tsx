@@ -7,8 +7,8 @@ export const BrokerageDealsService = {
         method: 'GET'
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   },
   getBrokerageDeal: async (brokerage_id: string, deal_id: string) => {
@@ -17,8 +17,8 @@ export const BrokerageDealsService = {
         method: 'GET'
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   },
   createDeal: async (brokerage_id: string, deal: LoftDeal) => {
@@ -31,8 +31,8 @@ export const BrokerageDealsService = {
         body: JSON.stringify(deal)
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   },
   updateDeal: async (brokerage_id: string, loft47DealId: string, deal: LoftDeal) => {
@@ -45,8 +45,8 @@ export const BrokerageDealsService = {
         body: JSON.stringify(deal)
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   }
 }

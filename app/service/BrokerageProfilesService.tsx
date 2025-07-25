@@ -8,8 +8,8 @@ export const BrokerageProfilesService = {
         method: 'GET'
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   },
   createBrokerageProfile: async (brokerage_id: string, profile: Profile) => {
@@ -22,8 +22,8 @@ export const BrokerageProfilesService = {
         body: JSON.stringify(profile)
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   },
   updateBrokerageProfile: async (brokerage_id: string, profile_id: string, profile: Profile) => {
@@ -36,8 +36,8 @@ export const BrokerageProfilesService = {
         body: JSON.stringify(profile)
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   }
 }

@@ -1,6 +1,6 @@
 import { Request, Response } from "express"
 
-import api from "../../api";
+import api, { handleAxiosError } from "../../api";
 
 
 export async function getBrokerageProfiles(req: Request, res: Response) {
@@ -15,8 +15,9 @@ export async function getBrokerageProfiles(req: Request, res: Response) {
       }
     });
     return res.status(response.status).json(response.data);
-  } catch (err) {
-    res.status(500).json({ error: 'getBrokerageProfiles error:' + err })
+  } catch (err: any) {
+    const error = handleAxiosError(err)
+    return res.status(error.status).json({ error: error.message })
   }
 }
 
@@ -25,8 +26,9 @@ export async function createBrokerageProfile(req: Request, res: Response) {
   try {
     const response = await api.post(`/brokerages/${brokerage_id}/profiles`, req.body)
     return res.status(response.status).json(response.data);
-  } catch (err) {
-    res.status(500).json({ error: 'createBrokerageProfile error:' + err })
+  } catch (err: any) {
+    const error = handleAxiosError(err)
+    return res.status(error.status).json({ error: error.message })
   }
 }
 
@@ -35,8 +37,9 @@ export async function getBrokerageProfile(req: Request, res: Response) {
     const { brokerage_id, profile_id } = req.params
     const response = await api.get(`/brokerages/${brokerage_id}/profiles/${profile_id}`)
     return res.status(response.status).json(response.data);
-  } catch (err) {
-    res.status(500).json({ error: 'getBrokerageProfile error:' + err })
+  } catch (err: any) {
+    const error = handleAxiosError(err)
+    return res.status(error.status).json({ error: error.message })
   }
 }
 
@@ -45,7 +48,8 @@ export async function updateBrokerageProfile(req: Request, res: Response) {
     const { brokerage_id, profile_id } = req.params
     const response = await api.patch(`/brokerages/${brokerage_id}/profiles/${profile_id}`, req.body)
     return res.status(response.status).json(response.data);
-  } catch (err) {
-    res.status(500).json({ error: 'updateBrokerageProfile error:' + err })
+  } catch (err: any) {
+    const error = handleAxiosError(err)
+    return res.status(error.status).json({ error: error.message })
   }
 }

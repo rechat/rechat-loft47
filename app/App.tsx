@@ -153,6 +153,10 @@ export const App: React.FC<EntryProps> = ({
       const newLoft47Deal = await BrokerageDealsService.createDeal(loft47BrokeragesRef.current[0].id, tempLoft47Deal)
 
       if (newLoft47Deal.error) {
+        if (newLoft47Deal.status === 422) {
+          setMessage(newLoft47Deal.error.errors[0]?.detail ?? 'Error creating Rechat Deal in Loft47!')
+          showMessage()
+        }
         console.log('newLoft47Deal:', newLoft47Deal.error)
       } else {
         setLoft47DealId(newLoft47Deal.data.id)
@@ -161,12 +165,11 @@ export const App: React.FC<EntryProps> = ({
         if (!mapping.error) {
           setMessage('Rechat Deal was successfully created in Loft47!')
           showMessage()
+          await updateLoft47DealAddress(newLoft47Deal)
+          await updateDealPeople(newLoft47Deal)
         } else {
           console.log('mapping:', mapping.error)
         }
-
-        await updateLoft47DealAddress(newLoft47Deal)
-        await updateDealPeople(newLoft47Deal)
       }
     }
   }
@@ -174,16 +177,20 @@ export const App: React.FC<EntryProps> = ({
   const updateMapping = async (_loft47DealId: string, tempLoft47Deal: LoftDeal) => {
     const updatedLoft47Deal = await BrokerageDealsService.updateDeal(loft47BrokeragesRef.current[0].id ?? '', _loft47DealId, tempLoft47Deal)
     if (updatedLoft47Deal.error) {
+      if (updatedLoft47Deal.status === 422) {
+        setMessage(updatedLoft47Deal.error.errors[0]?.detail ?? 'Error updating Rechat Deal in Loft47!')
+        showMessage()
+      }
       console.log('updatedLoft47Deal:', updatedLoft47Deal.error)
-      return
+    } else {
+      setLoft47DealId(updatedLoft47Deal.data.id)
+      
+      setMessage('Rechat Deal was successfully updated in Loft47!')
+      showMessage()
+  
+      await updateLoft47DealAddress(updatedLoft47Deal)
+      await updateDealPeople(updatedLoft47Deal)
     }
-    setLoft47DealId(updatedLoft47Deal.data.id)
-    
-    setMessage('Rechat Deal was successfully updated in Loft47!')
-    showMessage()
-
-    await updateLoft47DealAddress(updatedLoft47Deal)
-    await updateDealPeople(updatedLoft47Deal)
   }
 
   const updateLoft47DealAddress = async (loft47Deal: LoftDeal) => {
@@ -275,7 +282,6 @@ export const App: React.FC<EntryProps> = ({
       loft47Deal
     )
     setSyncStatus('Sync completed')
-    setTimeout(() => setSyncStatus(null), 3000)
   }
 
   /**
@@ -445,6 +451,7 @@ export const App: React.FC<EntryProps> = ({
       setSyncStatus('Updating Rechat Deal in Loft47...')
       await updateMapping(mapping.loft47_deal_id, tempLoft47Deal)
     }
+    setTimeout(() => setSyncStatus(null), 2000)
     setIsLoading(false)
   }
 

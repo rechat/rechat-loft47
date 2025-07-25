@@ -7,13 +7,15 @@ import {
   createMapping,
   testDB as testDBService,
 } from '../../services/deals_mapping'
+import { handleAxiosError } from '../../api'
 
 export async function listMappings(_: Request, res: Response) {
   try {
     const mappings = await getMappings()
     return res.json(mappings)
-  } catch (err) {
-    return res.status(500).json({ error: 'listMappings error: ' + err })
+  } catch (err: any) {
+    const error = handleAxiosError(err)
+    return res.status(error.status).json({ error: error.message })
   }
 }
 
@@ -25,8 +27,9 @@ export async function showMapping(req: Request, res: Response) {
       return res.status(404).json({ error: 'Mapping not found by id' })
     }
     return res.json(mapping)
-  } catch (err) {
-    return res.status(500).json({ error: 'showMapping error: ' + err })
+  } catch (err: any) {
+    const error = handleAxiosError(err)
+    return res.status(error.status).json({ error: error.message })
   }
 }
 
@@ -38,8 +41,9 @@ export async function showMappingByLoft47DealId(req: Request, res: Response) {
       return res.status(404).json({ error: 'Mapping not found by loft47_deal_id' })
     }
     return res.json(mapping)
-  } catch (err) {
-    return res.status(500).json({ error: 'showMappingByLoft47DealId error: ' + err })
+  } catch (err: any) {
+    const error = handleAxiosError(err)
+    return res.status(error.status).json({ error: error.message })
   }
 }
 
@@ -51,8 +55,9 @@ export async function showMappingByRechatDealId(req: Request, res: Response) {
       return res.status(404).json({ error: 'Mapping not found by rechat_deal_id' })
     }
     return res.json(mapping)
-  } catch (err) {
-    return res.status(500).json({ error: 'showMappingByRechatDealId error: ' + err })
+  } catch (err: any) {
+    const error = handleAxiosError(err)
+    return res.status(error.status).json({ error: error.message })
   }
 }
 
@@ -64,8 +69,9 @@ export async function addMapping(req: Request, res: Response) {
     }
     const mapping = await createMapping(rechat_deal_id, loft47_deal_id)
     return res.status(201).json(mapping)
-  } catch (err) {
-    return res.status(500).json({ error: 'addMapping error: ' + err })
+  } catch (err: any) {
+    const error = handleAxiosError(err)
+    return res.status(error.status).json({ error: error.message })
   }
 }
 
@@ -73,8 +79,8 @@ export async function testDB(req: Request, res: Response) {
   try {
     const data = await testDBService()
     return res.json(data)
-  } catch (err) {
-    console.error(err)
-    return res.status(500).json({ error: 'Internal server error' })
+  } catch (err: any) {
+    const error = handleAxiosError(err)
+    return res.status(error.status).json({ error: error.message })
   }
 }

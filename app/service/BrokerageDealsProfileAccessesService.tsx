@@ -7,8 +7,8 @@ export const BrokerageDealsProfileAccessesService = {
         method: 'GET'
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   },
   retrieveBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string) => {
@@ -17,8 +17,8 @@ export const BrokerageDealsProfileAccessesService = {
         method: 'GET'
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   },
   createBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access: ProfileAccess) => {
@@ -31,8 +31,8 @@ export const BrokerageDealsProfileAccessesService = {
         body: JSON.stringify(profile_access)
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   },
   updateBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string, profile_access: ProfileAccess) => {
@@ -45,8 +45,8 @@ export const BrokerageDealsProfileAccessesService = {
         body: JSON.stringify(profile_access)
       })
       return data
-    } catch (err) {
-      return { error: err }
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   },
   deleteBrokerageDealProfileAccess: async (brokerage_id: string, deal_id: string, profile_access_id: string) => { 
