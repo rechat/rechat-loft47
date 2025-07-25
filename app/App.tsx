@@ -195,10 +195,6 @@ export const App: React.FC<EntryProps> = ({
 
   const updateLoft47DealAddress = async (loft47Deal: LoftDeal) => {
     const streetAddress = getDealContext('street_address')
-    if (!streetAddress) {
-      setMessage('No address set for this deal! Rechat Deal Title is set in Rechat.')
-      showMessage()
-    }
 
     const addressId = loft47Deal.data.relationships.address.data.id
     const tempAddress = {
