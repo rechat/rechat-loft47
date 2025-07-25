@@ -21,7 +21,7 @@ import {
 import { 
   getBrokerageDeals, 
   getBrokerageDeal,
-  createDeal,
+  createBrokerageDeal,
   updateBrokerageDeal
 } from './app/controllers/loft47/brokerage_deals'
 import { 
@@ -72,7 +72,7 @@ router.route('/loft47/brokerages/:brokerage_id/profiles/:profile_id')
 
 router.route('/loft47/brokerages/:brokerage_id/deals')
   .get(getBrokerageDeals)
-  .post(createDeal)
+  .post(createBrokerageDeal)
 
 router.route('/loft47/brokerages/:brokerage_id/deals/:deal_id')
   .get(getBrokerageDeal)

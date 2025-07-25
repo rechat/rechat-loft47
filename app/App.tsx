@@ -246,7 +246,7 @@ export const App: React.FC<EntryProps> = ({
     if (selectedPropertyType === '') {
       setMessage('Please select a property type')
       showMessage()
-      return
+      return false
     }
 
     if (selectedSaleStatus === '') {

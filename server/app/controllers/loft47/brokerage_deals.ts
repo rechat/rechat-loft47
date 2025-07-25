@@ -25,7 +25,7 @@ export async function getBrokerageDeal(req: Request, res: Response) {
   }
 }
 
-export async function createDeal(req: Request, res: Response) {
+export async function createBrokerageDeal(req: Request, res: Response) {
   try {
     const { brokerage_id } = req.params
     const response = await api.post(`/brokerages/${brokerage_id}/deals`, req.body);
