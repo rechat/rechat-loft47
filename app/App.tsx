@@ -51,15 +51,13 @@ export const App: React.FC<EntryProps> = ({
   ReactUse.useDebounce(() => {}, 1000, [])
 
   const loft47BrokeragesRef = React.useRef<Loft47Brokerage[]>([])
-  // Message Snackbar
-  const [open, setOpen] = React.useState(false);
-  const [message, setMessage] = React.useState('');
 
   const [isLoading, setIsLoading] = React.useState(false)
   const loft47PrimaryAgentRef = React.useRef<any>(null)
   const [loft47DealId, setLoft47DealId] = React.useState('')
   const [loft47Url, setLoft47Url] = React.useState('')
   const [syncStatus, setSyncStatus] = React.useState<string | null>(null)
+  const [syncStatusType, setSyncStatusType] = React.useState<'normal' | 'warning'>('normal')
 
   const [selectedDealType,      setSelectedDealType]      = usePersistentState('dealType',      '')
   const [selectedDealSubType,   setSelectedDealSubType]   = usePersistentState('dealSubType',   '')
@@ -86,8 +84,8 @@ export const App: React.FC<EntryProps> = ({
   const signInOnce = async () => {
     const env = await ConfigService.getPublicEnv()
     if (env.error) {
-      setMessage('Loft47 credentials not provided by backend')
-      showMessage()
+      setSyncStatus('Loft47 credentials not provided by backend')
+      setSyncStatusType('warning')
       return false
     }
 
@@ -95,8 +93,8 @@ export const App: React.FC<EntryProps> = ({
     const authData = await AuthService.signIn(env.LOFT47_EMAIL, env.LOFT47_PASSWORD)
     if (authData.error) {
       console.log('authData:', authData.error)
-      setMessage('Sign in failed. Please try again later.')
-      showMessage()
+      setSyncStatus('Sign in failed. Please try again later.')
+      setSyncStatusType('warning')
       return false
     }
     return true
@@ -142,8 +140,8 @@ export const App: React.FC<EntryProps> = ({
         loft47PrimaryAgentRef.current = newAgent
       }
     } else {
-      setMessage('No Main Agent in Rechat!')
-      showMessage()
+      setSyncStatus('No Main Agent in Rechat!')
+      setSyncStatusType('warning')
       return
     }
   }
@@ -154,8 +152,8 @@ export const App: React.FC<EntryProps> = ({
 
       if (newLoft47Deal.error) {
         if (newLoft47Deal.status === 422) {
-          setMessage(newLoft47Deal.error.errors[0]?.detail ?? 'Error creating Rechat Deal in Loft47!')
-          showMessage()
+          setSyncStatus(newLoft47Deal.error.errors[0]?.detail ?? 'Error creating Rechat Deal in Loft47!')
+          setSyncStatusType('warning')
         }
         console.log('newLoft47Deal:', newLoft47Deal.error)
       } else {
@@ -163,8 +161,8 @@ export const App: React.FC<EntryProps> = ({
 
         const mapping = await DealsMappingService.createMapping(RechatDeal.id, newLoft47Deal.data.id)
         if (!mapping.error) {
-          setMessage('Rechat Deal was successfully created in Loft47!')
-          showMessage()
+          setSyncStatus('Rechat Deal was successfully created in Loft47!')
+
           await updateLoft47DealAddress(newLoft47Deal)
           await updateDealPeople(newLoft47Deal)
         } else {
@@ -178,15 +176,14 @@ export const App: React.FC<EntryProps> = ({
     const updatedLoft47Deal = await BrokerageDealsService.updateDeal(loft47BrokeragesRef.current[0].id ?? '', _loft47DealId, tempLoft47Deal)
     if (updatedLoft47Deal.error) {
       if (updatedLoft47Deal.status === 422) {
-        setMessage(updatedLoft47Deal.error.errors[0]?.detail ?? 'Error updating Rechat Deal in Loft47!')
-        showMessage()
+        setSyncStatus(updatedLoft47Deal.error.errors[0]?.detail ?? 'Error updating Rechat Deal in Loft47!')
+        setSyncStatusType('warning')
       }
       console.log('updatedLoft47Deal:', updatedLoft47Deal.error)
     } else {
       setLoft47DealId(updatedLoft47Deal.data.id)
       
-      setMessage('Rechat Deal was successfully updated in Loft47!')
-      showMessage()
+      setSyncStatus('Rechat Deal was successfully updated in Loft47!')
   
       await updateLoft47DealAddress(updatedLoft47Deal)
       await updateDealPeople(updatedLoft47Deal)
@@ -215,45 +212,39 @@ export const App: React.FC<EntryProps> = ({
   }
 
   const checkIfAllContextsAreFilled = () => {
+    setSyncStatusType('warning')
     if (!RechatDeal) {
-      setMessage('Rechat Deal is empty')
-      showMessage()
+      setSyncStatus('Rechat Deal is empty')
       return false
     }
     
     if (selectedDealSubType === '') {
-      setMessage('Please select a deal sub type')
-      showMessage()
+      setSyncStatus('Please select a deal sub type')
       return false
     }
 
     if (selectedDealType === '') {
-      setMessage('Please select a deal type')
-      showMessage()
+      setSyncStatus('Please select a deal type')
       return false
     }
 
     if (selectedLeadSource === '') {
-      setMessage('Please select a lead source')
-      showMessage()
+      setSyncStatus('Please select a lead source')
       return false
     }
 
     if (selectedPropertyType === '') {
-      setMessage('Please select a property type')
-      showMessage()
+      setSyncStatus('Please select a property type')
       return false
     }
 
     if (selectedSaleStatus === '') {
-      setMessage('Please select a sale status')
-      showMessage()
+      setSyncStatus('Please select a sale status')
       return false
     }
 
     if (!loft47PrimaryAgentRef.current) {
-      setMessage('Loft47 primary agent doesn\'t exist')
-      showMessage()
+      setSyncStatus('Loft47 primary agent doesn\'t exist')
       return false
     }
     return true
@@ -385,8 +376,8 @@ export const App: React.FC<EntryProps> = ({
 
     await retrieveBrokerages()
     if (loft47BrokeragesRef.current.length === 0) {
-      setMessage('No brokerages found. Please try again later.')
-      showMessage()
+      setSyncStatus('No brokerages found. Please try again later.')
+      setSyncStatusType('warning')
       setIsLoading(false)
       return
     }
@@ -437,6 +428,7 @@ export const App: React.FC<EntryProps> = ({
     }
 
     setSyncStatus('Checking if Rechat Deal exists in Loft47...')
+    setSyncStatusType('normal')
     const mapping = await DealsMappingService.getMappingByRechatDealId(RechatDeal.id)
     if (mapping.error) {
       console.log('mapping:', mapping.error)
@@ -447,7 +439,7 @@ export const App: React.FC<EntryProps> = ({
       setSyncStatus('Updating Rechat Deal in Loft47...')
       await updateMapping(mapping.loft47_deal_id, tempLoft47Deal)
     }
-    setTimeout(() => setSyncStatus(null), 2000)
+    setTimeout(() => setSyncStatus(null), 3000)
     setIsLoading(false)
   }
 
@@ -455,30 +447,15 @@ export const App: React.FC<EntryProps> = ({
     if (loft47Url) {
       window.open(`${loft47Url}/brokerages/${loft47BrokeragesRef.current[0].id}/deals/${loft47DealId}`, '_blank')
     } else {
-      setMessage('Loft47 URL not set. Please contact support.')
-      showMessage()
+      setSyncStatus('Loft47 URL not set. Please contact support.')
+      setSyncStatusType('warning')
     }
   }
-
-  const showMessage = () => {
-    setOpen(true);
-  };
-
-  const closeMessage = (
-    event: React.SyntheticEvent | Event,
-    reason: typeof Ui.SnackbarCloseReason
-  ) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-
-    setOpen(false);
-  };
 
   return (
     <Ui.Grid container spacing={2}>
       <Ui.CircularProgress style={{ display: 'absolute', position: 'absolute', top: '50%', left: '50%' }} hidden={!isLoading} />
-      <PeopleSyncStatus status={syncStatus} />
+      <PeopleSyncStatus status={syncStatus} type={syncStatusType} />
       <Ui.Grid item xs={12} md={12} lg={12}>
         <DealContextList
           contexts={DealContexts}
@@ -505,17 +482,6 @@ export const App: React.FC<EntryProps> = ({
         onClose={close}
         onOpenDeal={openLoft47Deal}
         canOpenDeal={!!loft47DealId}
-      />
-
-      <Ui.Snackbar
-        open={open}
-        autoHideDuration={5000}
-        onClose={closeMessage}
-        message={
-          <span style={{ fontSize: '1.2rem', width: '100%' }}>{message}</span>
-        }
-        style={{ width: '300px', height: '60px' }}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       />
     </Ui.Grid>
   )
