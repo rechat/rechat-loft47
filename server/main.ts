@@ -57,7 +57,7 @@ app.use(session({
   resave: false,
   saveUninitialized: true,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // true if using HTTPS
+    secure: isProduction, // true if using HTTPS
     sameSite: 'lax'
   }
 }));

@@ -175,7 +175,7 @@ export const App: React.FC<EntryProps> = ({
   const updateMapping = async (_loft47DealId: string, tempLoft47Deal: LoftDeal) => {
     const updatedLoft47Deal = await BrokerageDealsService.updateDeal(loft47BrokeragesRef.current[0].id ?? '', _loft47DealId, tempLoft47Deal)
     if (updatedLoft47Deal.error) {
-      if (updatedLoft47Deal.status === 422) {
+      if (updatedLoft47Deal.status === 422 || updatedLoft47Deal.status === 404) {
         setSyncStatus(updatedLoft47Deal.error.errors[0]?.detail ?? 'Error updating Rechat Deal in Loft47!')
         setSyncStatusType('warning')
       }
@@ -437,7 +437,7 @@ export const App: React.FC<EntryProps> = ({
       await createMapping(tempLoft47Deal)
     } else {
       setSyncStatus('Updating Rechat Deal in Loft47...')
-      await updateMapping(mapping.loft47_deal_id, tempLoft47Deal)
+      await updateMapping(mapping.loft47DealId, tempLoft47Deal)
     }
     setTimeout(() => setSyncStatus(null), 3000)
     setIsLoading(false)

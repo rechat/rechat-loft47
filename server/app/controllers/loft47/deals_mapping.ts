@@ -6,7 +6,7 @@ import {
   getMappingByRechatDealId,
   createMapping,
   testDB as testDBService,
-} from '../../services/deals_mapping'
+} from '../../../db/query'
 import { handleAxiosError } from '../../api'
 
 export async function listMappings(_: Request, res: Response) {
