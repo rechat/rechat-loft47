@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import { db, pool } from '../app/db'
 import { seed, reset } from 'drizzle-seed'
 import { rechatLoft47DealsMapping } from './schema'

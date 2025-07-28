@@ -17,43 +17,43 @@ The server starts on **http://localhost:8081**.  The React app is served by webp
 ---
 
 
-## 2. Database Migrations & Seeding (Knex + TypeScript)
+## 2. Database Migrations & Seeding (Drizzle ORM)
 
-We use **Knex** with a **TypeScript** config (`knexfile.ts`). All migration & seed files live under `./loft47/{migrations,seeds}` and use the `.ts` extension.
+The project now uses **[Drizzle ORM](https://orm.drizzle.team/)** with **`drizzle-kit`** for generating and running migrations.
 
-### 2.1 Running pending migrations
+All SQL migration files live under `server/db/drizzle/migrations` and are fully type-safe—no raw SQL or Knex wrappers required.
 
-```bash
-npm knex --knexfile knexfile.ts -r ts-node/register migrate:latest
-```
-
-### 2.2 Creating a new migration
+### 2.1 Generate & apply migrations
 
 ```bash
-npm knex --knexfile knexfile.ts -r ts-node/register migrate:make add_users_table
+# This script creates a new migration from any schema changes and then applies it
+npm run migrate        # alias for: npx drizzle-kit generate && npx drizzle-kit push
 ```
 
-Knex will generate a timestamped file in `loft47/migrations/`. Edit the `up` and `down` functions with SQL/Knex schema calls.
-
-### 2.3 Rolling back the last batch
+Alternatively run the commands by hand:
 
 ```bash
-npm knex --knexfile knexfile.ts -r ts-node/register migrate:rollback
+npx drizzle-kit generate   # scans your schema and generates an SQL migration
+npx drizzle-kit push       # executes the generated migration on the database
 ```
 
-### 2.4 Seeding data
+### 2.2 Automatic migrations at runtime
+
+`server/app/db.ts` invokes Drizzle’s migrator on startup, so pending migrations are executed when the server boots (useful for local development and CI environments):
+
+```ts
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+
+// …after creating the `db` instance
+await migrate(db, { migrationsFolder: 'server/db/drizzle/migrations' });
+```
+
+### 2.3 Seeding
 
 ```bash
-# run all seed files
-npm knex --knexfile knexfile.ts -r ts-node/register seed:run
+npm run seed            # runs tsx server/db/seed.ts
 ```
 
-Create seed files with:
-
-```bash
-npm knex --knexfile knexfile.ts -r ts-node/register seed:make seed_demo_data
-```
-
-Each seed file exports an async `seed(knex)` function.
+The seed script resets tables and populates them via `drizzle-seed`, keeping type-safety end-to-end.
 
 ---
