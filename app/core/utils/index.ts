@@ -214,15 +214,25 @@ export const getMainAgent = (roles: IDealRole[], deal: IDeal) => {
   return mainAgent
 }
 
-export const getOtherAgent = (roles: IDealRole[], deal: IDeal) => {
+export const getOtherAgents = (roles: IDealRole[], deal: IDeal) => {
   let other_agent_type = ''
   if (deal.deal_type === 'Buying') {
     other_agent_type = 'SellerAgent'
   } else if (deal.deal_type === 'Selling') {
     other_agent_type = 'BuyerAgent'
   }
-  const otherAgent = roles.find(role => role.role === other_agent_type)
-  return otherAgent
+  const otherAgents = roles.filter(role => role.role === other_agent_type)
+  return otherAgents
+}
+
+export const getAgents = (roles: IDealRole[]) => {
+  const agents = roles.filter(role => role.role === 'BuyerAgent' || role.role === 'SellerAgent')
+  return agents
+}
+
+export const getAgentsEmails = (roles: IDealRole[]) => {
+  const agentsEmails = roles.filter(role => role.role === 'BuyerAgent' || role.role === 'SellerAgent').map(role => role.email)
+  return agentsEmails.join(',')
 }
 
 export const decideOwningSide = (deal: IDeal) => {
@@ -233,6 +243,6 @@ export const decideOwningSide = (deal: IDeal) => {
     owningSide = 'list'
   }
   const enderType = deal.context.ender_type?.text
-  owningSide = (enderType === 'OfficeDoubleEnder' || enderType === 'OfficeSingleEnder') ? 'double_end' : owningSide
+  owningSide = (enderType === 'OfficeDoubleEnder' || enderType === 'OfficeSingleEnder' || enderType === 'AgentDoubleEnder') ? 'double_end' : owningSide
   return owningSide
 }

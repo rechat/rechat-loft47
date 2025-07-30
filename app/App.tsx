@@ -15,12 +15,14 @@ import {
   DealContexts,
   toISOWithOffset,
   getMainAgent,
-  getOtherAgent,
+  getOtherAgents,
   decideOwningSide,
   getBuyers,
   getSellers,
   getBuyersEmails,
   getSellersEmails,
+  getAgents,
+  getAgentsEmails,
 } from './core/utils'
 import { AddressService } from './service/AddressService'
 import { ConfigService } from './service/ConfigService'
@@ -109,7 +111,7 @@ export const App: React.FC<EntryProps> = ({
     loft47BrokeragesRef.current = brokeragesData.data
   }
 
-  const setMainAgent = async () => {
+  const setPrimaryAgent = async () => {
     const mainAgent = getMainAgent(roles, RechatDeal)
     if (mainAgent) {
       const profilesData = await BrokerageProfilesService.getBrokerageProfiles(loft47BrokeragesRef.current[0].id ?? '', {
@@ -143,6 +145,48 @@ export const App: React.FC<EntryProps> = ({
       setSyncStatus('No Main Agent in Rechat!')
       setSyncStatusType('warning')
       return
+    }
+  }
+
+  const updateAgents = async () => {
+    const agents = getAgents(roles)
+    const emails = getAgentsEmails(agents)
+    let profilesResp: any = { data: [] }
+
+    if (agents.length > 0) {
+      profilesResp = await BrokerageProfilesService.getBrokerageProfiles(
+        loft47BrokeragesRef.current[0].id ?? '',
+        { email: emails, type: 'Agent' }
+      )
+      if (profilesResp.error) {
+        console.log('Agents profilesResp:', profilesResp.error)
+        return
+      }
+    }
+
+    // Ensure we have an array even if API returns null/undefined
+    const existingProfiles: any[] = profilesResp.data
+    // Map email -> profile for quick lookup
+    const emailToProfile = new Map<string, any>(
+      existingProfiles.map((p: any) => [p.attributes.email, p])
+    )
+    // 1. Create missing agents
+    for (const agent of agents) {
+      if (!agent.email) continue
+      if (!emailToProfile.has(agent.email)) {
+        const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
+          loft47BrokeragesRef.current[0].id ?? '',
+          {
+            data: {
+              attributes: {
+                email: agent.email,
+                name: agent.legal_full_name,
+                type: 'Agent'
+              }
+            }
+          }
+        )
+      }
     }
   }
 
@@ -379,11 +423,16 @@ export const App: React.FC<EntryProps> = ({
       setSyncStatus('No brokerages found. Please try again later.')
       setSyncStatusType('warning')
       setIsLoading(false)
+      setTimeout(() => setSyncStatus(null), 3000)
       return
     }
-    await setMainAgent()
+
+    await setPrimaryAgent()
+    await updateAgents()
+    
     if (!checkIfAllContextsAreFilled()) {
       setIsLoading(false)
+      setTimeout(() => setSyncStatus(null), 3000)
       return
     }
 
@@ -394,8 +443,7 @@ export const App: React.FC<EntryProps> = ({
     const salesPrice = getDealContext('sales_price')?.text
     const updatedAt = RechatDeal.updated_at
     const possessionAt = toISOWithOffset(new Date((getDealContext('possession_date')?.date ?? 0) * 1000))
-    const mainAgent = getMainAgent(roles, RechatDeal)
-    const otherAgent = getOtherAgent(roles, RechatDeal)
+    const otherAgents = getOtherAgents(roles, RechatDeal)
     const owningSide = decideOwningSide(RechatDeal)
 
     const tempLoft47Deal = {
@@ -413,12 +461,12 @@ export const App: React.FC<EntryProps> = ({
           exclusive: !RechatDeal.listing,
           externalTransactionId: RechatDeal.id,
           ...(RechatDeal.brand.brand_type === 'Office' && { officeId: RechatDeal.brand.parent[0] }),
-          ...(lot && { lot }),          
+          ...(lot && { lot }),
           ...(mlsNumber && { mlsNumber }),
           offer: RechatDeal.deal_type === 'Buying',
-          ...(otherAgent && { outsideBrokerageName: otherAgent.company_title }),
+          ...(otherAgents.length > 0 && { outsideBrokerageName: otherAgents[0].company_title }),
           ...(owningSide && { owningSide }),
-          ...(mainAgent && { ownerName: mainAgent.legal_full_name }),
+          ownerName: loft47PrimaryAgentRef.current.attributes.name,
           ...(possessionAt && { possessionAt }),
           ...(salesPrice && { sellPrice: salesPrice }),
           ...(closedAt && { soldAt: closedAt }),
