@@ -428,8 +428,7 @@ export const App: React.FC<EntryProps> = ({
     }
 
     await setPrimaryAgent()
-    await updateAgents()
-    
+    // await updateAgents()
     if (!checkIfAllContextsAreFilled()) {
       setIsLoading(false)
       setTimeout(() => setSyncStatus(null), 3000)
@@ -441,11 +440,12 @@ export const App: React.FC<EntryProps> = ({
     const lot = getDealContext('lot_number')?.text
     const mlsNumber = getDealContext('mls_number')?.text
     const salesPrice = getDealContext('sales_price')?.text
+    const leasedPrice = getDealContext('leased_price')?.text
+    const isLease = RechatDeal.property_type.is_lease
     const updatedAt = RechatDeal.updated_at
     const possessionAt = toISOWithOffset(new Date((getDealContext('possession_date')?.date ?? 0) * 1000))
     const otherAgents = getOtherAgents(roles, RechatDeal)
     const owningSide = decideOwningSide(RechatDeal)
-
     const tempLoft47Deal = {
       data: {
         attributes: {
@@ -468,7 +468,7 @@ export const App: React.FC<EntryProps> = ({
           ...(owningSide && { owningSide }),
           ownerName: loft47PrimaryAgentRef.current.attributes.name,
           ...(possessionAt && { possessionAt }),
-          ...(salesPrice && { sellPrice: salesPrice }),
+          ...(isLease ? leasedPrice && { sellPrice: leasedPrice } : salesPrice && { sellPrice: salesPrice }),
           ...(closedAt && { soldAt: closedAt }),
           teamDeal: RechatDeal.brand.brand_type === 'Team',
         }

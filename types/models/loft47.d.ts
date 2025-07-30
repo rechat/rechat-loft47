@@ -62,7 +62,7 @@ type ProfileAccessAttributes = {
 
 type Permission = 'read' | 'write'
 
-type Role = 'buyer' | 'seller'
+type Role = 'buyer' | 'seller' | 'agent'
 
 type Side = 'list' | 'sell' | 'double_end' | 'not_applicable'
 

@@ -185,21 +185,21 @@ export const getSellersNames = (roles: IDealRole[]) => {
 }
 
 export const getBuyersEmails = (roles: IDealRole[]) => {
-  const buyersEmails = roles.filter(role => role.role === 'Buyer').map(role => role.email)
+  const buyersEmails = roles.filter(role => role.role === 'Buyer' || role.role === 'Tenant').map(role => role.email)
   return buyersEmails.join(',')
 }
 
 export const getSellersEmails = (roles: IDealRole[]) => {
-  const sellersEmails = roles.filter(role => role.role === 'Seller').map(role => role.email)
+  const sellersEmails = roles.filter(role => role.role === 'Seller' || role.role === 'Landlord').map(role => role.email)
   return sellersEmails.join(',')
 }
 
 export const getBuyers = (roles: IDealRole[]) => {
-  return roles.filter(role => role.role === 'Buyer')
+  return roles.filter(role => role.role === 'Buyer' || role.role === 'Tenant')
 }
 
 export const getSellers = (roles: IDealRole[]) => {
-  return roles.filter(role => role.role === 'Seller')
+  return roles.filter(role => role.role === 'Seller' || role.role === 'Landlord')
 }
 
 export const getMainAgent = (roles: IDealRole[], deal: IDeal) => {
