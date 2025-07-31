@@ -148,48 +148,6 @@ export const App: React.FC<EntryProps> = ({
     }
   }
 
-  const updateAgents = async () => {
-    const agents = getAgents(roles)
-    const emails = getAgentsEmails(agents)
-    let profilesResp: any = { data: [] }
-
-    if (agents.length > 0) {
-      profilesResp = await BrokerageProfilesService.getBrokerageProfiles(
-        loft47BrokeragesRef.current[0].id ?? '',
-        { email: emails, type: 'Agent' }
-      )
-      if (profilesResp.error) {
-        console.log('Agents profilesResp:', profilesResp.error)
-        return
-      }
-    }
-
-    // Ensure we have an array even if API returns null/undefined
-    const existingProfiles: any[] = profilesResp.data
-    // Map email -> profile for quick lookup
-    const emailToProfile = new Map<string, any>(
-      existingProfiles.map((p: any) => [p.attributes.email, p])
-    )
-    // 1. Create missing agents
-    for (const agent of agents) {
-      if (!agent.email) continue
-      if (!emailToProfile.has(agent.email)) {
-        const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
-          loft47BrokeragesRef.current[0].id ?? '',
-          {
-            data: {
-              attributes: {
-                email: agent.email,
-                name: agent.legal_full_name,
-                type: 'Agent'
-              }
-            }
-          }
-        )
-      }
-    }
-  }
-
   const createMapping = async (tempLoft47Deal: LoftDeal) => {
     if (loft47BrokeragesRef.current.length > 0) {
       const newLoft47Deal = await BrokerageDealsService.createDeal(loft47BrokeragesRef.current[0].id, tempLoft47Deal)
@@ -295,6 +253,15 @@ export const App: React.FC<EntryProps> = ({
   }
 
   const updateDealPeople = async (loft47Deal: LoftDeal) => {
+    setSyncStatus('Syncing agents...')
+    await syncPeople(
+      getAgents(roles),
+      getAgentsEmails,
+      'agent',
+      decideOwningSide(RechatDeal) as Side,
+      loft47Deal
+    )
+
     setSyncStatus('Syncing buyers...')
     await syncPeople(
       getBuyers(roles),
@@ -331,7 +298,7 @@ export const App: React.FC<EntryProps> = ({
     if (people.length > 0) {
       profilesResp = await BrokerageProfilesService.getBrokerageProfiles(
         loft47BrokeragesRef.current[0].id ?? '',
-        { email: emails, type: 'Profile' }
+        { email: emails, type: role === 'agent' ? 'Agent' : 'Profile' }
       )
       if (profilesResp.error) {
         console.log('profilesResp:', profilesResp.error)
@@ -356,7 +323,7 @@ export const App: React.FC<EntryProps> = ({
               attributes: {
                 email: person.email,
                 name: person.legal_full_name,
-                type: 'Profile'
+                type: role === 'agent' ? 'Agent' : 'Profile'
               }
             }
           }
@@ -378,11 +345,10 @@ export const App: React.FC<EntryProps> = ({
 
     const existingAccesses: any[] = accessesResp?.data.filter((a: any) => a.attributes.role === role) ?? []
     const existingAccessProfileIds = existingAccesses.map((a: any) => a.attributes.profileId)
-
     // a) Add missing accesses
     for (const profileId of profileIds) {
       if (!existingAccessProfileIds.includes(profileId)) {
-        await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
+        const newAccessResp = await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
           loft47BrokeragesRef.current[0].id ?? '',
           loft47Deal.data.id,
           {
@@ -395,17 +361,33 @@ export const App: React.FC<EntryProps> = ({
             }
           }
         )
+        if (newAccessResp.error) {
+          if (newAccessResp.status === 422) {
+            setSyncStatus(newAccessResp.error.errors[0]?.detail ?? 'Error creating Rechat Deal Access in Loft47!')
+            setSyncStatusType('warning')
+            setTimeout(() => setSyncStatus(null), 3000)
+          }
+          console.log('newAccessResp.error:', newAccessResp.error)
+        }
       }
     }
 
     // b) Remove stale accesses that no longer correspond to the people
     for (const access of existingAccesses) {
       if (!profileIds.includes(access.attributes.profileId) || profileIds.length === 0) {
-        await BrokerageDealsProfileAccessesService.deleteBrokerageDealProfileAccess(
+        const deleteAccessResp = await BrokerageDealsProfileAccessesService.deleteBrokerageDealProfileAccess(
           loft47BrokeragesRef.current[0].id ?? '',
           loft47Deal.data.id,
           access.id
         )
+        if (deleteAccessResp.error) {
+          if (deleteAccessResp.status === 422) {
+            setSyncStatus(deleteAccessResp.error.errors[0]?.detail ?? 'Error deleting Rechat Deal Access in Loft47!')
+            setSyncStatusType('warning')
+            setTimeout(() => setSyncStatus(null), 3000)
+          }
+          console.log('deleteAccessResp.error:', deleteAccessResp.error)
+        }
       }
     }
   }
@@ -428,7 +410,7 @@ export const App: React.FC<EntryProps> = ({
     }
 
     await setPrimaryAgent()
-    // await updateAgents()
+
     if (!checkIfAllContextsAreFilled()) {
       setIsLoading(false)
       setTimeout(() => setSyncStatus(null), 3000)

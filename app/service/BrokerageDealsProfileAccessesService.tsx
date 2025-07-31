@@ -56,12 +56,12 @@ export const BrokerageDealsProfileAccessesService = {
         parseJson: false
       })
       if (data.status === 204) {
-        console.log('Deleted successfully, no response body.')
+        return { status: 204, message: 'Deleted successfully, no response body.' }
       } else {
-        console.log('Deleted failed, response body:', data.statusText)
+        return { status: data.status, message: 'Deleted failed, response body:' + data.statusText }
       }
-    } catch (err) {
-      console.error(err)
+    } catch (err: any) {
+      return { status: err.status, error: err.body.error }
     }
   }
 }
