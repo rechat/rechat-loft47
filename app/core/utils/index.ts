@@ -235,6 +235,16 @@ export const getAgentsEmails = (roles: IDealRole[]) => {
   return agentsEmails.join(',')
 }
 
+export const getTitles = (roles: IDealRole[]) => {
+  const titles = roles.filter(role => role.role === 'Title')
+  return titles
+}
+
+export const getTitlesEmails = (roles: IDealRole[]) => {
+  const titlesEmails = roles.filter(role => role.role === 'Title').map(role => role.email)
+  return titlesEmails.join(',')
+}
+
 export const decideOwningSide = (deal: IDeal) => {
   let owningSide = ''
   if (deal.deal_type === 'Buying') {

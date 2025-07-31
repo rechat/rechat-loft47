@@ -23,6 +23,8 @@ import {
   getSellersEmails,
   getAgents,
   getAgentsEmails,
+  getTitles,
+  getTitlesEmails,
 } from './core/utils'
 import { AddressService } from './service/AddressService'
 import { ConfigService } from './service/ConfigService'
@@ -258,6 +260,15 @@ export const App: React.FC<EntryProps> = ({
       getAgents(roles),
       getAgentsEmails,
       'agent',
+      decideOwningSide(RechatDeal) as Side,
+      loft47Deal
+    )
+
+    setSyncStatus('Syncing titles...')
+    await syncPeople(
+      getTitles(roles),
+      getTitlesEmails,
+      'title_company',
       decideOwningSide(RechatDeal) as Side,
       loft47Deal
     )

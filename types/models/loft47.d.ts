@@ -62,7 +62,8 @@ type ProfileAccessAttributes = {
 
 type Permission = 'read' | 'write'
 
-type Role = 'buyer' | 'seller' | 'agent'
+// Deal access roles of brokerage
+type Role = 'buyer' | 'seller' | 'agent' | 'title_company'
 
 type Side = 'list' | 'sell' | 'double_end' | 'not_applicable'
 
