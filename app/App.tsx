@@ -17,14 +17,8 @@ import {
   getMainAgent,
   getOtherAgents,
   decideOwningSide,
-  getBuyers,
-  getSellers,
-  getBuyersEmails,
-  getSellersEmails,
-  getAgents,
-  getAgentsEmails,
-  getTitles,
-  getTitlesEmails,
+  getEmailsFromRoles,
+  decideRoleType,
 } from './core/utils'
 import { AddressService } from './service/AddressService'
 import { ConfigService } from './service/ConfigService'
@@ -94,6 +88,7 @@ export const App: React.FC<EntryProps> = ({
   }
 
   const signInOnce = async () => {
+    handleSyncStatus('Signing in...')
     const env = await ConfigService.getPublicEnv()
     if (env.error) {
       handleSyncStatus('Loft47 credentials not provided by backend', 'warning')
@@ -257,61 +252,15 @@ export const App: React.FC<EntryProps> = ({
   }
 
   const updateDealPeople = async (loft47Deal: LoftDeal) => {
-    handleSyncStatus('Syncing agents...')
-    await syncPeople(
-      getAgents(roles),
-      getAgentsEmails,
-      'agent',
-      decideOwningSide(RechatDeal) as Side,
-      loft47Deal
-    )
+    handleSyncStatus('Syncing deal people...')
 
-    handleSyncStatus('Syncing titles...')
-    await syncPeople(
-      getTitles(roles),
-      getTitlesEmails,
-      'title_company',
-      decideOwningSide(RechatDeal) as Side,
-      loft47Deal
-    )
-
-    handleSyncStatus('Syncing buyers...')
-    await syncPeople(
-      getBuyers(roles),
-      getBuyersEmails,
-      'buyer',
-      'sell',
-      loft47Deal
-    )
-
-    handleSyncStatus('Syncing sellers...')
-    await syncPeople(
-      getSellers(roles),
-      getSellersEmails,
-      'seller',
-      'list',
-      loft47Deal
-    )
-    handleSyncStatus('Sync completed')
-  }
-
-  /**
-   * Generic helper to keep people/profiles and profile accesses in sync for a given role.
-   */
-  const syncPeople = async (
-    people: any[],
-    getEmailsFn: (people: any[]) => string,
-    role: Role,
-    side: Side,
-    loft47Deal: any
-  ) => {
-    const emails = getEmailsFn(people)
+    const emails = getEmailsFromRoles(roles)
     let profilesResp: any = { data: [] }
 
-    if (people.length > 0) {
+    if (roles.length > 0) {
       profilesResp = await BrokerageProfilesService.getBrokerageProfiles(
         loft47BrokeragesRef.current[0].id ?? '',
-        { email: emails, type: role === 'agent' ? 'Agent' : 'Profile' }
+        { email: emails }
       )
       if (profilesResp.error) {
         console.log('profilesResp:', profilesResp.error)
@@ -326,8 +275,9 @@ export const App: React.FC<EntryProps> = ({
       existingProfiles.map((p: any) => [p.attributes.email, p])
     )
     // 1. Create missing profiles
-    for (const person of people) {
+    for (const person of roles) {
       if (!person.email) continue
+      const personRole = decideRoleType(person) as Role
       if (!emailToProfile.has(person.email)) {
         const newProfileResp = await BrokerageProfilesService.createBrokerageProfile(
           loft47BrokeragesRef.current[0].id ?? '',
@@ -336,40 +286,69 @@ export const App: React.FC<EntryProps> = ({
               attributes: {
                 email: person.email,
                 name: person.legal_full_name,
-                type: role === 'agent' ? 'Agent' : 'Profile'
+                type: personRole === 'agent' ? 'Agent' : 'Profile'
               }
             }
           }
         )
         if (newProfileResp?.data) {
-          emailToProfile.set(person.email, newProfileResp.data)
+          emailToProfile.set(person.email, 
+            { ...newProfileResp.data, role: personRole })
+        } else {
+          console.log('newProfileResp.error:', newProfileResp.error)
         }
+      } else {
+        // update existing profile
+        const compareRoleType = personRole === 'agent' ? 'Agent' : 'Profile'
+        const existingProfile = emailToProfile.get(person.email)
+        if (existingProfile?.attributes.type !== compareRoleType) {
+          const updateProfileResp = await BrokerageProfilesService.updateBrokerageProfile(
+            loft47BrokeragesRef.current[0].id ?? '',
+            existingProfile.attributes.id,
+            { 
+              data: { 
+                attributes: {
+                  email: person.email,
+                  name: person.legal_full_name,
+                  type: compareRoleType 
+                } 
+              }
+            }
+          )
+          if (updateProfileResp?.error) {
+            console.log('updateProfileResp.error:', updateProfileResp.error)
+          } else {
+            emailToProfile.set(person.email, 
+              { ...updateProfileResp.data, role: personRole })
+          }
+        }
+        emailToProfile.set(person.email, { ...existingProfile, role: personRole })
       }
     }
 
-    // Get all profiles ids corresponding to the people
-    const profileIds = Array.from(emailToProfile.values()).map((p: any) => p.attributes.id)
-
-    // 2. Retrieve existing accesses for this role
-    const accessesResp = await BrokerageDealsProfileAccessesService.retrieveBrokerageDealProfileAccesses(
+    // Get all profiles ids corresponding to the roles 
+    const existingProfileIds = Array.from(emailToProfile.values()).map((p: any) => p.attributes.id)
+    // 2. Retrieve existing accesses of this deal
+    const dealAccessesResp = await BrokerageDealsProfileAccessesService.retrieveBrokerageDealProfileAccesses(
       loft47BrokeragesRef.current[0].id ?? '',
-      loft47Deal.data.id
+      loft47Deal.data.id ?? ''
     )
 
-    const existingAccesses: any[] = accessesResp?.data.filter((a: any) => a.attributes.role === role) ?? []
-    const existingAccessProfileIds = existingAccesses.map((a: any) => a.attributes.profileId)
-    // a) Add missing accesses
-    for (const profileId of profileIds) {
-      if (!existingAccessProfileIds.includes(profileId)) {
+    const existingDealAccesses: any[] = dealAccessesResp?.data ?? []
+    const existingDealAccessProfileIds = existingDealAccesses.map((a: any) => a.attributes.profileId)
+
+    // a) Add missing accesses (process sequentially so the shared array updates before the next iteration)
+    for (const existingProfile of emailToProfile.values()) {
+      if (!existingDealAccesses.some((a: any) => a.attributes.profileId == existingProfile.attributes.id)) {
         const newAccessResp = await BrokerageDealsProfileAccessesService.createBrokerageDealProfileAccess(
           loft47BrokeragesRef.current[0].id ?? '',
-          loft47Deal.data.id,
+          loft47Deal.data.id ?? '',
           {
             data: {
               attributes: {
-                profileId: String(profileId),
-                role,
-                side
+                profileId: String(existingProfile.attributes.id),
+                role: existingProfile.role as Role,
+                side: decideOwningSide(RechatDeal) as Side
               }
             }
           }
@@ -380,16 +359,18 @@ export const App: React.FC<EntryProps> = ({
             handleSyncStatusTimeout()
           }
           console.log('newAccessResp.error:', newAccessResp.error)
+        } else {
+          existingDealAccesses.push(newAccessResp.data)
         }
       }
     }
 
     // b) Remove stale accesses that no longer correspond to the people
-    for (const access of existingAccesses) {
-      if (!profileIds.includes(access.attributes.profileId) || profileIds.length === 0) {
+    for (const access of existingDealAccesses) {
+      if (!existingProfileIds.includes(access.attributes.profileId) || existingProfileIds.length === 0) {
         const deleteAccessResp = await BrokerageDealsProfileAccessesService.deleteBrokerageDealProfileAccess(
           loft47BrokeragesRef.current[0].id ?? '',
-          loft47Deal.data.id,
+          loft47Deal.data.id ?? '',
           access.id
         )
         if (deleteAccessResp.error) {
@@ -401,6 +382,7 @@ export const App: React.FC<EntryProps> = ({
         }
       }
     }
+    handleSyncStatus('Sync completed')
   }
 
   const syncWithLoft47 = async () => {

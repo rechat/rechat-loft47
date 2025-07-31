@@ -184,24 +184,6 @@ export const getSellersNames = (roles: IDealRole[]) => {
   return sellersNames.join(',')
 }
 
-export const getBuyersEmails = (roles: IDealRole[]) => {
-  const buyersEmails = roles.filter(role => role.role === 'Buyer' || role.role === 'Tenant').map(role => role.email)
-  return buyersEmails.join(',')
-}
-
-export const getSellersEmails = (roles: IDealRole[]) => {
-  const sellersEmails = roles.filter(role => role.role === 'Seller' || role.role === 'Landlord').map(role => role.email)
-  return sellersEmails.join(',')
-}
-
-export const getBuyers = (roles: IDealRole[]) => {
-  return roles.filter(role => role.role === 'Buyer' || role.role === 'Tenant')
-}
-
-export const getSellers = (roles: IDealRole[]) => {
-  return roles.filter(role => role.role === 'Seller' || role.role === 'Landlord')
-}
-
 export const getMainAgent = (roles: IDealRole[], deal: IDeal) => {
   let main_agent_type = ''
   if (deal.deal_type === 'Buying') {
@@ -225,32 +207,9 @@ export const getOtherAgents = (roles: IDealRole[], deal: IDeal) => {
   return otherAgents
 }
 
-export const getAgents = (roles: IDealRole[]) => {
-  const agents = roles.filter(role => 
-    role.role === 'BuyerAgent' || 
-    role.role === 'SellerAgent' || 
-    role.role === 'CoBuyerAgent' || 
-    role.role === 'CoSellerAgent')
-  return agents
-}
-
-export const getAgentsEmails = (roles: IDealRole[]) => {
-  const agentsEmails = roles.filter(role => 
-    role.role === 'BuyerAgent' || 
-    role.role === 'SellerAgent' || 
-    role.role === 'CoBuyerAgent' || 
-    role.role === 'CoSellerAgent').map(role => role.email)
-  return agentsEmails.join(',')
-}
-
-export const getTitles = (roles: IDealRole[]) => {
-  const titles = roles.filter(role => role.role === 'Title')
-  return titles
-}
-
-export const getTitlesEmails = (roles: IDealRole[]) => {
-  const titlesEmails = roles.filter(role => role.role === 'Title').map(role => role.email)
-  return titlesEmails.join(',')
+export const getEmailsFromRoles = (roles: IDealRole[]) => {
+  const emails = roles.map(role => role.email)
+  return emails.join(',')
 }
 
 export const decideOwningSide = (deal: IDeal) => {
@@ -263,4 +222,15 @@ export const decideOwningSide = (deal: IDeal) => {
   const enderType = deal.context.ender_type?.text
   owningSide = (enderType === 'OfficeDoubleEnder' || enderType === 'OfficeSingleEnder' || enderType === 'AgentDoubleEnder') ? 'double_end' : owningSide
   return owningSide
+}
+
+export const decideRoleType = (role: IDealRole) => {
+  if (role.role === 'BuyerAgent' || role.role === 'SellerAgent' || role.role === 'CoBuyerAgent' || role.role === 'CoSellerAgent') {
+    return 'agent'
+  } else if (role.role === 'Title') {
+    return 'title_company'
+  } else if (role.role === 'Buyer' || role.role === 'Seller' || role.role === 'Tenant' || role.role === 'Landlord') {
+    return role.role.toLowerCase()
+  }
+  return 'other'
 }
