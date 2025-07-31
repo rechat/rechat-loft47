@@ -85,11 +85,18 @@ export const App: React.FC<EntryProps> = ({
     setSelectedSaleStatus(event.target.value as string)
   }
 
+  const handleSyncStatus = (status: string, type: 'normal' | 'warning' = 'normal') => {
+    setSyncStatus(status)
+    setSyncStatusType(type)
+  }
+  const handleSyncStatusTimeout = () => {
+    setTimeout(() => { setSyncStatus(null); setSyncStatusType('normal') }, 3000)
+  }
+
   const signInOnce = async () => {
     const env = await ConfigService.getPublicEnv()
     if (env.error) {
-      setSyncStatus('Loft47 credentials not provided by backend')
-      setSyncStatusType('warning')
+      handleSyncStatus('Loft47 credentials not provided by backend', 'warning')
       return false
     }
 
@@ -97,8 +104,7 @@ export const App: React.FC<EntryProps> = ({
     const authData = await AuthService.signIn(env.LOFT47_EMAIL, env.LOFT47_PASSWORD)
     if (authData.error) {
       console.log('authData:', authData.error)
-      setSyncStatus('Sign in failed. Please try again later.')
-      setSyncStatusType('warning')
+      handleSyncStatus('Sign in failed. Please try again later.', 'warning')
       return false
     }
     return true
@@ -144,8 +150,7 @@ export const App: React.FC<EntryProps> = ({
         loft47PrimaryAgentRef.current = newAgent
       }
     } else {
-      setSyncStatus('No Main Agent in Rechat!')
-      setSyncStatusType('warning')
+      handleSyncStatus('No Main Agent in Rechat!', 'warning')
       return
     }
   }
@@ -156,8 +161,7 @@ export const App: React.FC<EntryProps> = ({
 
       if (newLoft47Deal.error) {
         if (newLoft47Deal.status === 422) {
-          setSyncStatus(newLoft47Deal.error.errors[0]?.detail ?? 'Error creating Rechat Deal in Loft47!')
-          setSyncStatusType('warning')
+          handleSyncStatus(newLoft47Deal.error.errors[0]?.detail ?? 'Error creating Rechat Deal in Loft47!', 'warning')
         }
         console.log('newLoft47Deal:', newLoft47Deal.error)
       } else {
@@ -165,7 +169,7 @@ export const App: React.FC<EntryProps> = ({
 
         const mapping = await DealsMappingService.createMapping(RechatDeal.id, newLoft47Deal.data.id)
         if (!mapping.error) {
-          setSyncStatus('Rechat Deal was successfully created in Loft47!')
+          handleSyncStatus('Rechat Deal was successfully created in Loft47!')
 
           await updateLoft47DealAddress(newLoft47Deal)
           await updateDealPeople(newLoft47Deal)
@@ -180,14 +184,13 @@ export const App: React.FC<EntryProps> = ({
     const updatedLoft47Deal = await BrokerageDealsService.updateDeal(loft47BrokeragesRef.current[0].id ?? '', _loft47DealId, tempLoft47Deal)
     if (updatedLoft47Deal.error) {
       if (updatedLoft47Deal.status === 422 || updatedLoft47Deal.status === 404) {
-        setSyncStatus(updatedLoft47Deal.error.errors[0]?.detail ?? 'Error updating Rechat Deal in Loft47!')
-        setSyncStatusType('warning')
+        handleSyncStatus(updatedLoft47Deal.error.errors[0]?.detail ?? 'Error updating Rechat Deal in Loft47!', 'warning')
       }
       console.log('updatedLoft47Deal:', updatedLoft47Deal.error)
     } else {
       setLoft47DealId(updatedLoft47Deal.data.id)
       
-      setSyncStatus('Rechat Deal was successfully updated in Loft47!')
+      handleSyncStatus('Rechat Deal was successfully updated in Loft47!')
   
       await updateLoft47DealAddress(updatedLoft47Deal)
       await updateDealPeople(updatedLoft47Deal)
@@ -216,46 +219,45 @@ export const App: React.FC<EntryProps> = ({
   }
 
   const checkIfAllContextsAreFilled = () => {
-    setSyncStatusType('warning')
     if (!RechatDeal) {
-      setSyncStatus('Rechat Deal is empty')
+      handleSyncStatus('Rechat Deal is empty', 'warning')
       return false
     }
     
     if (selectedDealSubType === '') {
-      setSyncStatus('Please select a deal sub type')
+      handleSyncStatus('Please select a deal sub type', 'warning')
       return false
     }
 
     if (selectedDealType === '') {
-      setSyncStatus('Please select a deal type')
+      handleSyncStatus('Please select a deal type', 'warning')
       return false
     }
 
     if (selectedLeadSource === '') {
-      setSyncStatus('Please select a lead source')
+      handleSyncStatus('Please select a lead source', 'warning')
       return false
     }
 
     if (selectedPropertyType === '') {
-      setSyncStatus('Please select a property type')
+      handleSyncStatus('Please select a property type', 'warning')
       return false
     }
 
     if (selectedSaleStatus === '') {
-      setSyncStatus('Please select a sale status')
+      handleSyncStatus('Please select a sale status', 'warning')
       return false
     }
 
     if (!loft47PrimaryAgentRef.current) {
-      setSyncStatus('Loft47 primary agent doesn\'t exist')
+      handleSyncStatus('Loft47 primary agent doesn\'t exist', 'warning')
       return false
     }
     return true
   }
 
   const updateDealPeople = async (loft47Deal: LoftDeal) => {
-    setSyncStatus('Syncing agents...')
+    handleSyncStatus('Syncing agents...')
     await syncPeople(
       getAgents(roles),
       getAgentsEmails,
@@ -264,7 +266,7 @@ export const App: React.FC<EntryProps> = ({
       loft47Deal
     )
 
-    setSyncStatus('Syncing titles...')
+    handleSyncStatus('Syncing titles...')
     await syncPeople(
       getTitles(roles),
       getTitlesEmails,
@@ -273,7 +275,7 @@ export const App: React.FC<EntryProps> = ({
       loft47Deal
     )
 
-    setSyncStatus('Syncing buyers...')
+    handleSyncStatus('Syncing buyers...')
     await syncPeople(
       getBuyers(roles),
       getBuyersEmails,
@@ -282,7 +284,7 @@ export const App: React.FC<EntryProps> = ({
       loft47Deal
     )
 
-    setSyncStatus('Syncing sellers...')
+    handleSyncStatus('Syncing sellers...')
     await syncPeople(
       getSellers(roles),
       getSellersEmails,
@@ -290,7 +292,7 @@ export const App: React.FC<EntryProps> = ({
       'list',
       loft47Deal
     )
-    setSyncStatus('Sync completed')
+    handleSyncStatus('Sync completed')
   }
 
   /**
@@ -345,10 +347,10 @@ export const App: React.FC<EntryProps> = ({
       }
     }
 
-    // Get all profiles ids corresponding to the people(Buyers or Sellers)
+    // Get all profiles ids corresponding to the people
     const profileIds = Array.from(emailToProfile.values()).map((p: any) => p.attributes.id)
 
-    // 2. Retrieve existing accesses for this role(Buyers or Sellers)
+    // 2. Retrieve existing accesses for this role
     const accessesResp = await BrokerageDealsProfileAccessesService.retrieveBrokerageDealProfileAccesses(
       loft47BrokeragesRef.current[0].id ?? '',
       loft47Deal.data.id
@@ -374,9 +376,8 @@ export const App: React.FC<EntryProps> = ({
         )
         if (newAccessResp.error) {
           if (newAccessResp.status === 422) {
-            setSyncStatus(newAccessResp.error.errors[0]?.detail ?? 'Error creating Rechat Deal Access in Loft47!')
-            setSyncStatusType('warning')
-            setTimeout(() => setSyncStatus(null), 3000)
+            handleSyncStatus(newAccessResp.error.errors[0]?.detail ?? 'Error creating Rechat Deal Access in Loft47!', 'warning')
+            handleSyncStatusTimeout()
           }
           console.log('newAccessResp.error:', newAccessResp.error)
         }
@@ -393,9 +394,8 @@ export const App: React.FC<EntryProps> = ({
         )
         if (deleteAccessResp.error) {
           if (deleteAccessResp.status === 422) {
-            setSyncStatus(deleteAccessResp.error.errors[0]?.detail ?? 'Error deleting Rechat Deal Access in Loft47!')
-            setSyncStatusType('warning')
-            setTimeout(() => setSyncStatus(null), 3000)
+            handleSyncStatus(deleteAccessResp.error.errors[0]?.detail ?? 'Error deleting Rechat Deal Access in Loft47!', 'warning')
+            handleSyncStatusTimeout()
           }
           console.log('deleteAccessResp.error:', deleteAccessResp.error)
         }
@@ -413,10 +413,9 @@ export const App: React.FC<EntryProps> = ({
 
     await retrieveBrokerages()
     if (loft47BrokeragesRef.current.length === 0) {
-      setSyncStatus('No brokerages found. Please try again later.')
-      setSyncStatusType('warning')
+      handleSyncStatus('No brokerages found. Please try again later.', 'warning')
+      handleSyncStatusTimeout()
       setIsLoading(false)
-      setTimeout(() => setSyncStatus(null), 3000)
       return
     }
 
@@ -424,7 +423,7 @@ export const App: React.FC<EntryProps> = ({
 
     if (!checkIfAllContextsAreFilled()) {
       setIsLoading(false)
-      setTimeout(() => setSyncStatus(null), 3000)
+      handleSyncStatusTimeout()
       return
     }
 
@@ -468,19 +467,18 @@ export const App: React.FC<EntryProps> = ({
       }
     }
 
-    setSyncStatus('Checking if Rechat Deal exists in Loft47...')
-    setSyncStatusType('normal')
+    handleSyncStatus('Checking if Rechat Deal exists in Loft47...')
     const mapping = await DealsMappingService.getMappingByRechatDealId(RechatDeal.id)
     if (mapping.error) {
       console.log('mapping:', mapping.error)
     } else if (mapping.notFound) {
-      setSyncStatus('Creating Rechat Deal in Loft47...')
+      handleSyncStatus('Creating Rechat Deal in Loft47...')
       await createMapping(tempLoft47Deal)
     } else {
-      setSyncStatus('Updating Rechat Deal in Loft47...')
+      handleSyncStatus('Updating Rechat Deal in Loft47...')
       await updateMapping(mapping.loft47DealId, tempLoft47Deal)
     }
-    setTimeout(() => setSyncStatus(null), 3000)
+    handleSyncStatusTimeout()
     setIsLoading(false)
   }
 
@@ -488,8 +486,7 @@ export const App: React.FC<EntryProps> = ({
     if (loft47Url) {
       window.open(`${loft47Url}/brokerages/${loft47BrokeragesRef.current[0].id}/deals/${loft47DealId}`, '_blank')
     } else {
-      setSyncStatus('Loft47 URL not set. Please contact support.')
-      setSyncStatusType('warning')
+      handleSyncStatus('Loft47 URL not set. Please contact support.', 'warning')
     }
   }
 

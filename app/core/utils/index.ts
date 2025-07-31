@@ -226,12 +226,20 @@ export const getOtherAgents = (roles: IDealRole[], deal: IDeal) => {
 }
 
 export const getAgents = (roles: IDealRole[]) => {
-  const agents = roles.filter(role => role.role === 'BuyerAgent' || role.role === 'SellerAgent')
+  const agents = roles.filter(role => 
+    role.role === 'BuyerAgent' || 
+    role.role === 'SellerAgent' || 
+    role.role === 'CoBuyerAgent' || 
+    role.role === 'CoSellerAgent')
   return agents
 }
 
 export const getAgentsEmails = (roles: IDealRole[]) => {
-  const agentsEmails = roles.filter(role => role.role === 'BuyerAgent' || role.role === 'SellerAgent').map(role => role.email)
+  const agentsEmails = roles.filter(role => 
+    role.role === 'BuyerAgent' || 
+    role.role === 'SellerAgent' || 
+    role.role === 'CoBuyerAgent' || 
+    role.role === 'CoSellerAgent').map(role => role.email)
   return agentsEmails.join(',')
 }
 
