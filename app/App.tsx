@@ -10,6 +10,7 @@ import { BrokerageDealsService } from './service/BrokerageDealsService'
 import { BrokerageDealsProfileAccessesService } from './service/BrokerageDealsProfileAccessesService'
 import { DealsMappingService } from './service/DealsMappingService'
 import { BrokerageProfilesService } from './service/BrokerageProfilesService'
+import { BrokerageDealAccessRolesService } from './service/BrokerageDealAccessRoles'
 import { usePersistentState } from './hooks/usePersistentState'
 import { 
   DealContexts,
@@ -19,6 +20,7 @@ import {
   decideOwningSide,
   getEmailsFromRoles,
   decideRoleType,
+  isAgentRole,
 } from './core/utils'
 import { AddressService } from './service/AddressService'
 import { ConfigService } from './service/ConfigService'
@@ -385,6 +387,24 @@ export const App: React.FC<EntryProps> = ({
     handleSyncStatus('Sync completed')
   }
 
+  const updateDealAccessRoles = async (roles: IDealRole[]) => {
+    const dealAccessRoles = await BrokerageDealAccessRolesService.retrieveBrokerageDealAccessRoles(loft47BrokeragesRef.current[0].id ?? '')
+
+    if (dealAccessRoles.error) {
+      console.log('dealAccessRoles:', dealAccessRoles.error)
+    }
+    for (const role of roles) {
+      const isFindRole = dealAccessRoles.data.some(
+        (d: any) => isAgentRole(role.role) ? 'agent' : d.attributes.name == role.role.toLowerCase())
+      if (!isFindRole) {
+        const createDealAccessRoleResp = await BrokerageDealAccessRolesService.createBrokerageDealAccessRole(loft47BrokeragesRef.current[0].id ?? '', {
+          data: { attributes: { name: isAgentRole(role.role) ? 'agent' : role.role.toLowerCase() } }
+        })
+        console.log('createDealAccessRoleResp:', createDealAccessRoleResp)
+      }
+    }
+  }
+
   const syncWithLoft47 = async () => {
     setIsLoading(true)
     const isAuthenticated = await signInOnce()
@@ -400,6 +420,8 @@ export const App: React.FC<EntryProps> = ({
       setIsLoading(false)
       return
     }
+
+    updateDealAccessRoles(roles)
 
     await setPrimaryAgent()
 

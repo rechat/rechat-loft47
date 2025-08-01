@@ -228,9 +228,16 @@ export const decideRoleType = (role: IDealRole) => {
   if (role.role === 'BuyerAgent' || role.role === 'SellerAgent' || role.role === 'CoBuyerAgent' || role.role === 'CoSellerAgent') {
     return 'agent'
   } else if (role.role === 'Title') {
-    return 'title_company'
+    return 'title'
   } else if (role.role === 'Buyer' || role.role === 'Seller' || role.role === 'Tenant' || role.role === 'Landlord') {
     return role.role.toLowerCase()
   }
   return 'other'
+}
+
+export const isAgentRole = (role: IDealRoleType) => {
+  return role === 'BuyerAgent' 
+    || role === 'SellerAgent' 
+    || role === 'CoBuyerAgent' 
+    || role === 'CoSellerAgent'
 }

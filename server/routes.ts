@@ -38,6 +38,13 @@ import {
   updateBrokerageDealProfileAccess 
 } from './app/controllers/loft47/brokerage_deals_profile_accesses'
 import { retrieveAddress, updateAddress } from './app/controllers/loft47/addresses'
+import { 
+  createBrokerageDealAccessRole, 
+  deleteBrokerageDealAccessRole, 
+  retrieveBrokerageDealAccessRole, 
+  retrieveBrokerageDealAccessRoles, 
+  updateBrokerageDealAccessRole 
+} from './app/controllers/loft47/brokerage_deal_access_roles'
 
 const router = express.Router()
 
@@ -77,6 +84,15 @@ router.route('/loft47/brokerages/:brokerage_id/deals')
 router.route('/loft47/brokerages/:brokerage_id/deals/:deal_id')
   .get(getBrokerageDeal)
   .patch(updateBrokerageDeal)
+
+router.route('/loft47/brokerages/:brokerage_id/deal_access_roles')
+  .get(retrieveBrokerageDealAccessRoles)
+  .post(createBrokerageDealAccessRole)
+
+router.route('/loft47/brokerages/:brokerage_id/deal_access_roles/:deal_access_role_id')
+  .get(retrieveBrokerageDealAccessRole)
+  .patch(updateBrokerageDealAccessRole)
+  .delete(deleteBrokerageDealAccessRole)
 
 router.route('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses')
   .get(retrieveBrokerageDealProfileAccesses)
