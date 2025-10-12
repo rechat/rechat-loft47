@@ -1,4 +1,4 @@
-FROM node:24
+FROM node:23
 
 ENV APP_HOME /app
 WORKDIR $APP_HOME
