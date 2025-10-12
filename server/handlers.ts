@@ -246,6 +246,14 @@ export async function manifest(_req: Request, res: Response) {
   res.sendFile('manifest.json', { root: process.cwd() })
 }
 
+export async function bundle(req: Request, res: Response) {
+  const filename = req.params.filename
+  res.sendFile(filename, { 
+    root: `${process.cwd()}/dist-web`,
+    maxAge: '7d'
+  })
+}
+
 // Create or update brand credentials
 export async function createBrandCredentials(req: Request, res: Response) {
   try {
