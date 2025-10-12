@@ -13,7 +13,7 @@
     "build:manifest": "node -r ts-node/register ./.configuration/update-manifest/index.ts",
     "build:web": "NODE_ENV=production node -r ts-node/register ./.configuration/build/index.ts",
     "build:server": "rimraf dist-server && cross-env NODE_ENV=production tsc -p server/tsconfig.production.json",
-    "start": "NODE_ENV=production node dist-server/server/main.js",
+    "start": "NODE_ENV=production node dist-server/main.js",
     "deploy": "gcloud run deploy",
     "migrate": "npx drizzle-kit generate && npx drizzle-kit push",
     "seed": "tsx server/db/seed.ts"
