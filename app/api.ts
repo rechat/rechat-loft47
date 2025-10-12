@@ -62,7 +62,7 @@ export const api = {
   // Profiles
   async getProfiles(brokerageId: string, filters: Record<string, string>, brandIds: string[]) {
     try {
-      const params = new URLSearchParams({ ...filters, brand_ids: brandIds.join(',') })
+      const params = new URLSearchParams({ brand_ids: brandIds.join(','), ...filters })
       return await apiFetch(`/loft47/brokerages/${brokerageId}/profiles?${params}`, { method: 'GET' })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }

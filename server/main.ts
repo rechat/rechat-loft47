@@ -61,6 +61,8 @@ if (isDevelopment) {
   )
 
   app.use('/static', express.static(path.resolve(__dirname, '../app/static')))
+  // Serve manifest.json from root in development
+  app.use('/manifest.json', express.static(path.resolve(__dirname, '../manifest.json')))
 }
 
 if (isProduction) {
@@ -89,9 +91,7 @@ function haltOnTimedout(
 }
 
 throng({
-  workers: isDevelopment
-    ? 1
-    : process.env.WEB_CONCURRENCY || Math.max(os.cpus().length, 8) || 1,
+  workers: 1,
   lifetime: Infinity,
   start: () => {
     app.listen(port, () => console.log(`App is started on 0.0.0.0:${port}`))

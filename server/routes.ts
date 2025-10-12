@@ -4,13 +4,24 @@ import {
   getAppConfig,
   createBrandCredentials,
   getBrandCredentialsByBrandId,
-  createGetHandler,
-  createPostHandler,
-  createPatchHandler,
-  createDeleteHandler,
   getMapping,
   createMapping,
-  home
+  home,
+  getBrokerages,
+  createBrokerage,
+  getProfiles,
+  createProfile,
+  updateProfile,
+  getDeals,
+  createDeal,
+  getDeal,
+  updateDeal,
+  getDealAccesses,
+  createDealAccess,
+  deleteDealAccess,
+  getDealAccessRoles,
+  createDealAccessRole,
+  updateAddress
 } from './handlers'
 
 const router = express.Router()
@@ -24,68 +35,27 @@ router.get('/loft47/brand_credentials/:brand_id', getBrandCredentialsByBrandId)
 
 // Auth is now handled server-side in brand_credentials/lookup
 
-// Loft47 API proxy routes - simple pass-through
-router.get('/loft47/brokerages', createGetHandler('/brokerages'))
-router.post('/loft47/brokerages', createPostHandler('/brokerages'))
+// Loft47 API specific endpoints
+router.get('/loft47/brokerages', getBrokerages)
+router.post('/loft47/brokerages', createBrokerage)
 
-router.get(
-  '/loft47/brokerages/:brokerage_id/profiles',
-  createGetHandler('/brokerages/:brokerage_id/profiles')
-)
-router.post(
-  '/loft47/brokerages/:brokerage_id/profiles',
-  createPostHandler('/brokerages/:brokerage_id/profiles')
-)
-router.patch(
-  '/loft47/brokerages/:brokerage_id/profiles/:profile_id',
-  createPatchHandler('/brokerages/:brokerage_id/profiles/:profile_id')
-)
+router.get('/loft47/brokerages/:brokerage_id/profiles', getProfiles)
+router.post('/loft47/brokerages/:brokerage_id/profiles', createProfile)
+router.patch('/loft47/brokerages/:brokerage_id/profiles/:profile_id', updateProfile)
 
-router.get(
-  '/loft47/brokerages/:brokerage_id/deals',
-  createGetHandler('/brokerages/:brokerage_id/deals')
-)
-router.post(
-  '/loft47/brokerages/:brokerage_id/deals',
-  createPostHandler('/brokerages/:brokerage_id/deals')
-)
-router.get(
-  '/loft47/brokerages/:brokerage_id/deals/:deal_id',
-  createGetHandler('/brokerages/:brokerage_id/deals/:deal_id')
-)
-router.patch(
-  '/loft47/brokerages/:brokerage_id/deals/:deal_id',
-  createPatchHandler('/brokerages/:brokerage_id/deals/:deal_id')
-)
+router.get('/loft47/brokerages/:brokerage_id/deals', getDeals)
+router.post('/loft47/brokerages/:brokerage_id/deals', createDeal)
+router.get('/loft47/brokerages/:brokerage_id/deals/:deal_id', getDeal)
+router.patch('/loft47/brokerages/:brokerage_id/deals/:deal_id', updateDeal)
 
-router.get(
-  '/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses',
-  createGetHandler('/brokerages/:brokerage_id/deals/:deal_id/accesses')
-)
-router.post(
-  '/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses',
-  createPostHandler('/brokerages/:brokerage_id/deals/:deal_id/accesses')
-)
-router.delete(
-  '/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses/:profile_access_id',
-  createDeleteHandler(
-    '/brokerages/:brokerage_id/deals/:deal_id/accesses/:profile_access_id'
-  )
-)
+router.get('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses', getDealAccesses)
+router.post('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses', createDealAccess)
+router.delete('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses/:profile_access_id', deleteDealAccess)
 
-router.get(
-  '/loft47/brokerages/:brokerage_id/deal_access_roles',
-  createGetHandler('/brokerages/:brokerage_id/deal_access_roles')
-)
-router.post(
-  '/loft47/brokerages/:brokerage_id/deal_access_roles',
-  createPostHandler('/brokerages/:brokerage_id/deal_access_roles')
-)
+router.get('/loft47/brokerages/:brokerage_id/deal_access_roles', getDealAccessRoles)
+router.post('/loft47/brokerages/:brokerage_id/deal_access_roles', createDealAccessRole)
 
-router.patch(
-  '/loft47/addresses/:address_id',
-  createPatchHandler('/addresses/:address_id')
-)
+router.patch('/loft47/addresses/:address_id', updateAddress)
 
 // Deal mappings - custom logic
 router.get('/loft47/deal_mappings/rechat/:deal_id', getMapping)
