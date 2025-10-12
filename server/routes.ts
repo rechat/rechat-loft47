@@ -1,7 +1,9 @@
 import express from 'express'
 import {
   signIn,
-  getConfig,
+  getBrandCredentials,
+  createBrandCredentials,
+  getBrandCredentialsByBrandId,
   createGetHandler,
   createPostHandler,
   createPatchHandler,
@@ -17,7 +19,10 @@ const router = express.Router()
 // Basic routes
 router.get('/', home)
 router.get('/manifest.json', manifest)
-router.get('/config/env', getConfig)
+// Brand credentials
+router.post('/loft47/brand_credentials/lookup', getBrandCredentials)
+router.post('/loft47/brand_credentials', createBrandCredentials)
+router.get('/loft47/brand_credentials/:brand_id', getBrandCredentialsByBrandId)
 
 // Auth
 router.post('/loft47/sign_in', signIn)

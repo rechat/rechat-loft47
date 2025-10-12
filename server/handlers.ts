@@ -1,20 +1,32 @@
 import { Request, Response } from 'express'
 import api, { handleAxiosError } from './app/api'
 import { db } from './app/db'
-import { rechatLoft47DealsMapping } from './db/schema'
+import { rechatLoft47DealsMapping, brandLoft47Credentials } from './db/schema'
 import { eq } from 'drizzle-orm'
 
 // Simple proxy handlers for Loft47 API calls
 
 export async function signIn(req: Request, res: Response) {
   try {
-    const response = await api.post('/sign_in', req.body, {
+    // Extract API URL from request body if provided, fallback to environment
+    const { api_url, ...signInData } = req.body
+    const apiUrl = api_url || process.env.LOFT47_API_URL || 'https://api.loft47.com/v1'
+    
+    // Create a new axios instance for this request with the correct base URL
+    const apiInstance = require('axios').create({
+      baseURL: apiUrl,
+      withCredentials: true
+    })
+    
+    const response = await apiInstance.post('/sign_in', signInData, {
       headers: { 'Content-Type': 'application/json' }
     })
     
     const token = response.headers.authorization
     if (token) {
+      // Store the token and API URL in the default api instance for subsequent requests
       api.defaults.headers.common['x-session-token'] = token
+      api.defaults.baseURL = apiUrl
     }
     
     res.status(response.status).json(response.data)
@@ -24,12 +36,59 @@ export async function signIn(req: Request, res: Response) {
   }
 }
 
-export async function getConfig(_req: Request, res: Response) {
-  res.json({
-    LOFT47_EMAIL: process.env.LOFT47_EMAIL || '',
-    LOFT47_PASSWORD: process.env.LOFT47_PASSWORD || '',
-    LOFT47_URL: process.env.LOFT47_URL || ''
-  })
+// Look up credentials for a brand hierarchy
+export async function getBrandCredentials(req: Request, res: Response) {
+  try {
+    const { brand } = req.body
+    
+    if (!brand) {
+      return res.status(400).json({ error: 'Brand information required' })
+    }
+    
+    // Build brand hierarchy array (current brand + all parents)
+    const brandHierarchy: string[] = []
+    let currentBrand = brand
+    
+    while (currentBrand) {
+      brandHierarchy.push(currentBrand.id)
+      currentBrand = currentBrand.parent
+    }
+    
+    // Look for credentials starting from current brand, going up the hierarchy
+    for (const brandId of brandHierarchy) {
+      const [credentials] = await db
+        .select()
+        .from(brandLoft47Credentials)
+        .where(eq(brandLoft47Credentials.brandId, brandId))
+      
+      if (credentials) {
+        // Build URLs based on environment
+        const apiUrl = credentials.isStaging 
+          ? 'https://api.staging.loft47.com/v1'
+          : 'https://api.loft47.com/v1'
+        
+        const appUrl = credentials.isStaging
+          ? 'https://staging.loft47.com'
+          : 'https://app.loft47.com'
+        
+        return res.json({
+          LOFT47_EMAIL: credentials.loft47Email,
+          LOFT47_PASSWORD: credentials.loft47Password,
+          LOFT47_API_URL: apiUrl,
+          LOFT47_APP_URL: appUrl,
+          IS_STAGING: credentials.isStaging,
+          BRAND_ID: credentials.brandId
+        })
+      }
+    }
+    
+    // No credentials found in the hierarchy
+    res.status(404).json({ error: 'No Loft47 credentials found for this brand hierarchy' })
+    
+  } catch (error) {
+    console.error('Error getting brand credentials:', error)
+    res.status(500).json({ error: 'Database error' })
+  }
 }
 
 // Generic proxy handler for GET requests
@@ -151,4 +210,91 @@ export async function home(_req: Request, res: Response) {
 
 export async function manifest(_req: Request, res: Response) {
   res.sendFile('/Users/emilsedgh/Projects/rechat/loft47/manifest.json')
+}
+
+// Create or update brand credentials
+export async function createBrandCredentials(req: Request, res: Response) {
+  try {
+    const { brand_id, loft47_email, loft47_password, is_staging = false } = req.body
+    
+    if (!brand_id || !loft47_email || !loft47_password) {
+      return res.status(400).json({ error: 'Brand ID, email, and password are required' })
+    }
+    
+    // Check if credentials already exist for this brand
+    const [existing] = await db
+      .select()
+      .from(brandLoft47Credentials)
+      .where(eq(brandLoft47Credentials.brandId, brand_id))
+    
+    if (existing) {
+      // Update existing credentials
+      const [updated] = await db
+        .update(brandLoft47Credentials)
+        .set({
+          loft47Email: loft47_email,
+          loft47Password: loft47_password,
+          isStaging: is_staging
+        })
+        .where(eq(brandLoft47Credentials.brandId, brand_id))
+        .returning()
+      
+      res.json(updated)
+    } else {
+      // Create new credentials
+      const [inserted] = await db
+        .insert(brandLoft47Credentials)
+        .values({
+          brandId: brand_id,
+          loft47Email: loft47_email,
+          loft47Password: loft47_password,
+          isStaging: is_staging
+        })
+        .returning()
+      
+      res.status(201).json(inserted)
+    }
+    
+  } catch (error) {
+    console.error('Error creating/updating brand credentials:', error)
+    res.status(500).json({ error: 'Database error' })
+  }
+}
+
+// Get credentials for a specific brand ID
+export async function getBrandCredentialsByBrandId(req: Request, res: Response) {
+  try {
+    const { brand_id } = req.params
+    
+    const [credentials] = await db
+      .select()
+      .from(brandLoft47Credentials)
+      .where(eq(brandLoft47Credentials.brandId, brand_id))
+    
+    if (!credentials) {
+      return res.status(404).json({ error: 'Credentials not found for this brand' })
+    }
+    
+    // Build URLs based on environment
+    const apiUrl = credentials.isStaging 
+      ? 'https://api.staging.loft47.com/v1'
+      : 'https://api.loft47.com/v1'
+    
+    const appUrl = credentials.isStaging
+      ? 'https://staging.loft47.com'
+      : 'https://app.loft47.com'
+    
+    res.json({
+      LOFT47_EMAIL: credentials.loft47Email,
+      LOFT47_PASSWORD: credentials.loft47Password,
+      LOFT47_API_URL: apiUrl,
+      LOFT47_APP_URL: appUrl,
+      IS_STAGING: credentials.isStaging,
+      BRAND_ID: credentials.brandId
+    })
+    
+  } catch (error) {
+    console.error('Error getting brand credentials by ID:', error)
+    res.status(500).json({ error: 'Database error' })
+  }
 }

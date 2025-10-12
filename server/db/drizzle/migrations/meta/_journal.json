@@ -8,6 +8,13 @@
       "when": 1753728015138,
       "tag": "0000_kind_colossus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1760262168564,
+      "tag": "0001_mushy_demogoblin",
+      "breakpoints": true
     }
   ]
 }

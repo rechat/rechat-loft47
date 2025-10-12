@@ -3,22 +3,58 @@ import { apiFetch } from '@libs/apiFetch'
 // Simple API wrapper for Loft47 integration
 export const api = {
   // Auth
-  async signIn(email: string, password: string) {
+  async signIn(email: string, password: string, apiUrl?: string) {
     try {
+      const payload: any = { user: { email, password } }
+      if (apiUrl) {
+        payload.api_url = apiUrl
+      }
+      
       return await apiFetch('/loft47/sign_in', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: { email, password } })
+        body: JSON.stringify(payload)
       })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
   },
 
-  // Get config
-  async getConfig() {
+  // Get brand credentials
+  async getBrandCredentials(brand: any) {
     try {
-      return await apiFetch('/config/env', { method: 'GET' })
+      return await apiFetch('/loft47/brand_credentials/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand })
+      })
+    } catch (err: any) {
+      return { error: err.body?.error, status: err.status }
+    }
+  },
+
+  // Create/update brand credentials
+  async createBrandCredentials(brandId: string, email: string, password: string, isStaging: boolean = false) {
+    try {
+      return await apiFetch('/loft47/brand_credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brand_id: brandId,
+          loft47_email: email,
+          loft47_password: password,
+          is_staging: isStaging
+        })
+      })
+    } catch (err: any) {
+      return { error: err.body?.error, status: err.status }
+    }
+  },
+
+  // Get credentials for specific brand
+  async getBrandCredentialsByBrandId(brandId: string) {
+    try {
+      return await apiFetch(`/loft47/brand_credentials/${brandId}`, { method: 'GET' })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }

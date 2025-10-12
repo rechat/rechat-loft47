@@ -32,6 +32,7 @@ export default function LoftIntegration({ models: { deal, roles }, api: { getDea
   const [status, setStatus] = React.useState<string | null>(null)
   const [statusType, setStatusType] = React.useState<'normal' | 'warning'>('normal')
   const [isExistingDeal, setIsExistingDeal] = React.useState(false)
+  const [needsCredentials, setNeedsCredentials] = React.useState(false)
   
   // Form state
   const [dealType, setDealType] = React.useState('')
@@ -40,6 +41,13 @@ export default function LoftIntegration({ models: { deal, roles }, api: { getDea
   const [propertyType, setPropertyType] = React.useState('')
   const [saleStatus, setSaleStatus] = React.useState('')
   const [selectedBrokerageId, setSelectedBrokerageId] = React.useState('')
+  
+  // Credentials setup state
+  const [credentialsEmail, setCredentialsEmail] = React.useState('')
+  const [credentialsPassword, setCredentialsPassword] = React.useState('')
+  const [credentialsIsStaging, setCredentialsIsStaging] = React.useState(false)
+  const [selectedBrandId, setSelectedBrandId] = React.useState('')
+  const [brandHierarchy, setBrandHierarchy] = React.useState<any[]>([])
   
   // Internal state
   const [brokerages, setBrokerages] = React.useState<any[]>([])
@@ -86,22 +94,36 @@ export default function LoftIntegration({ models: { deal, roles }, api: { getDea
     showStatus('Checking for existing sync...')
 
     try {
-      // 1. Get config and sign in
-      const config = await api.getConfig()
-      if (config.error) {
-        showStatus('Ready to sync - no existing data found')
+      // Build brand hierarchy for selection
+      const hierarchy: any[] = []
+      let currentBrand = deal.brand
+      while (currentBrand) {
+        hierarchy.push(currentBrand)
+        currentBrand = currentBrand.parent
+      }
+      setBrandHierarchy(hierarchy)
+      
+      // Set default selected brand to top-most parent (last in hierarchy, first when reversed)
+      if (hierarchy.length > 0) {
+        setSelectedBrandId(hierarchy[hierarchy.length - 1].id)
+      }
+
+      // 1. Get brand credentials from hierarchy
+      const credentials = await api.getBrandCredentials(deal.brand)
+      if (credentials.error) {
+        setNeedsCredentials(true)
         setIsInitializing(false)
         return
       }
 
-      const auth = await api.signIn(config.LOFT47_EMAIL, config.LOFT47_PASSWORD)
+      const auth = await api.signIn(credentials.LOFT47_EMAIL, credentials.LOFT47_PASSWORD, credentials.LOFT47_API_URL)
       if (auth.error) {
-        showStatus('Ready to sync - could not authenticate')
+        setNeedsCredentials(true)
         setIsInitializing(false)
         return
       }
 
-      setLoft47Url(config.LOFT47_URL || '')
+      setLoft47Url(credentials.LOFT47_APP_URL || '')
 
       // 2. Get brokerages
       const brokData = await api.getBrokerages()
@@ -392,11 +414,179 @@ export default function LoftIntegration({ models: { deal, roles }, api: { getDea
 
   const openDeal = () => {
     if (loft47Url && selectedBrokerageId && loft47DealId) {
-      const baseUrl = loft47Url.endsWith('/') ? loft47Url.slice(0, -1) : loft47Url
-      window.open(`${baseUrl}/brokerages/${selectedBrokerageId}/deals/${loft47DealId}`, '_blank')
+      // loft47Url is already the full app URL, no need to modify
+      window.open(`${loft47Url}/brokerages/${selectedBrokerageId}/deals/${loft47DealId}`, '_blank')
     } else {
       showStatus('Deal not synced yet or brokerage not selected', 'warning')
     }
+  }
+
+  const saveCredentials = async () => {
+    if (!selectedBrandId || !credentialsEmail || !credentialsPassword) {
+      showStatus('Please fill in all credential fields', 'warning')
+      return
+    }
+
+    setIsLoading(true)
+    showStatus('Saving credentials...')
+
+    try {
+      const result = await api.createBrandCredentials(
+        selectedBrandId,
+        credentialsEmail,
+        credentialsPassword,
+        credentialsIsStaging
+      )
+
+      if (result.error) {
+        showStatus('Failed to save credentials', 'warning')
+        return
+      }
+
+      showStatus('Credentials saved successfully!')
+      setNeedsCredentials(false)
+      
+      // Clear form
+      setCredentialsEmail('')
+      setCredentialsPassword('')
+      
+      // Restart initialization
+      setTimeout(() => initializeComponent(), 1000)
+
+    } catch (error) {
+      showStatus('Failed to save credentials', 'warning')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Show credentials setup UI if needed
+  if (needsCredentials) {
+    return (
+      <div style={{ width: '100%', padding: 12, backgroundColor: '#fafafa', minHeight: 'auto' }}>
+        {isLoading && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}>
+            <Ui.Paper style={{ padding: 32, borderRadius: 12, textAlign: 'center' }}>
+              <Ui.CircularProgress style={{ marginBottom: 16 }} size={48} />
+              <Ui.Typography variant="h6">
+                Saving credentials...
+              </Ui.Typography>
+            </Ui.Paper>
+          </div>
+        )}
+        
+        <Ui.Paper elevation={2} style={{ padding: 24, borderRadius: 12, maxWidth: 500, margin: '0 auto' }}>
+          <Ui.Typography variant="h5" style={{ fontWeight: 'bold', marginBottom: 16, color: '#1976d2', textAlign: 'center' }}>
+            🔐 Configure Loft47 Credentials
+          </Ui.Typography>
+          
+          <Ui.Typography variant="body2" style={{ marginBottom: 24, color: '#666', textAlign: 'center' }}>
+            No Loft47 credentials found for this account hierarchy. Please configure your credentials to continue.
+          </Ui.Typography>
+          
+          {status && (
+            <div style={{ 
+              padding: '12px 16px', 
+              marginBottom: 16, 
+              borderRadius: 4, 
+              backgroundColor: statusType === 'warning' ? '#fff3cd' : '#d1ecf1',
+              border: `1px solid ${statusType === 'warning' ? '#fdbf47' : '#bee5eb'}`,
+              color: statusType === 'warning' ? '#856404' : '#0c5460'
+            }}>
+              {status}
+            </div>
+          )}
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Account Selection */}
+            <Ui.FormControl fullWidth variant="outlined">
+              <Ui.InputLabel>Account</Ui.InputLabel>
+              <Ui.Select
+                value={selectedBrandId}
+                onChange={(e) => setSelectedBrandId(e.target.value as string)}
+                style={{ backgroundColor: 'white' }}
+              >
+                {brandHierarchy.slice().reverse().map(account => (
+                  <Ui.MenuItem key={account.id} value={account.id}>
+                    {account.name} ({account.brand_type})
+                  </Ui.MenuItem>
+                ))}
+              </Ui.Select>
+            </Ui.FormControl>
+            
+            {/* Email */}
+            <Ui.TextField
+              fullWidth
+              variant="outlined"
+              label="Loft47 Email"
+              type="email"
+              value={credentialsEmail}
+              onChange={(e) => setCredentialsEmail(e.target.value)}
+              style={{ backgroundColor: 'white' }}
+            />
+            
+            {/* Password */}
+            <Ui.TextField
+              fullWidth
+              variant="outlined"
+              label="Loft47 Password"
+              type="password"
+              value={credentialsPassword}
+              onChange={(e) => setCredentialsPassword(e.target.value)}
+              style={{ backgroundColor: 'white' }}
+            />
+            
+            {/* Staging Toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', padding: '8px 0' }}>
+              <Ui.Checkbox
+                checked={credentialsIsStaging}
+                onChange={(e) => setCredentialsIsStaging(e.target.checked)}
+                color="primary"
+              />
+              <Ui.Typography variant="body1" style={{ marginLeft: 8 }}>
+                Use Staging Environment
+              </Ui.Typography>
+            </div>
+            
+            {credentialsIsStaging && (
+              <div style={{ 
+                padding: '8px 12px', 
+                borderRadius: 4, 
+                backgroundColor: '#d1ecf1',
+                border: '1px solid #bee5eb',
+                color: '#0c5460',
+                fontSize: '0.8rem'
+              }}>
+                Staging: api.staging.loft47.com → staging.loft47.com
+              </div>
+            )}
+            
+            {/* Save Button */}
+            <Ui.Button
+              variant="contained"
+              color="primary"
+              size="large"
+              onClick={saveCredentials}
+              disabled={isLoading || !credentialsEmail || !credentialsPassword}
+              style={{ marginTop: 16, padding: '12px 24px' }}
+            >
+              💾 Save Credentials
+            </Ui.Button>
+          </div>
+        </Ui.Paper>
+      </div>
+    )
   }
 
   return (
@@ -422,7 +612,6 @@ export default function LoftIntegration({ models: { deal, roles }, api: { getDea
           </Ui.Paper>
         </div>
       )}
-      
 
       <Ui.Grid container spacing={2}>
         {/* Deal Status & Actions Bar */}
