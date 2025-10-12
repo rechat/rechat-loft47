@@ -243,7 +243,7 @@ export async function home(_req: Request, res: Response) {
 }
 
 export async function manifest(_req: Request, res: Response) {
-  res.sendFile('/Users/emilsedgh/Projects/rechat/loft47/manifest.json')
+  res.sendFile('manifest.json', { root: process.cwd() })
 }
 
 // Create or update brand credentials
