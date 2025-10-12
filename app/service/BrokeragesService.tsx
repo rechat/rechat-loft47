@@ -11,6 +11,7 @@ export const BrokeragesService = {
       const data = await apiFetch('/loft47/brokerages', {
         method: 'GET'
       })
+
       return data
     } catch (err: any) {
       return { status: err.status, error: err.body.error }

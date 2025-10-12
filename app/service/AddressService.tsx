@@ -6,6 +6,7 @@ export const AddressService = {
       const data = await apiFetch(`/loft47/addresses/${address_id}`, {
         method: 'GET'
       })
+
       return data
     } catch (err: any) {
       return { status: err.status, error: err.body.error }
@@ -20,6 +21,7 @@ export const AddressService = {
         },
         body: JSON.stringify(address)
       })
+
       return data
     } catch (err: any) {
       return { status: err.status, error: err.body.error }

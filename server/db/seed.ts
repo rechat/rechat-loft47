@@ -1,5 +1,7 @@
-import { db, pool } from '../app/db'
 import { seed, reset } from 'drizzle-seed'
+
+import { db, pool } from '../app/db'
+
 import { rechatLoft47DealsMapping } from './schema'
 
 async function main() {
@@ -8,6 +10,6 @@ async function main() {
   await pool.end()
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error('Seed failed:', err)
 })

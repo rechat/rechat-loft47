@@ -1,4 +1,5 @@
 import React from '@libs/react'
+
 import DealContextItem, { DealContext } from '../DealContextItem'
 
 interface DealContextListProps {
@@ -12,15 +13,15 @@ export default function DealContextList({
 }: DealContextListProps) {
   return (
     <>
-      {contexts.map(context => {        
+      {contexts.map(context => {
         return (
           <DealContextItem
-          key={context.id}
-          context={context}
-          getDealContext={getDealContext}
+            key={context.id}
+            context={context}
+            getDealContext={getDealContext}
           />
         )
       })}
     </>
   )
-} 
+}

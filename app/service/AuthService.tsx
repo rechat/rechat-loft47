@@ -20,6 +20,7 @@ export const AuthService = {
           }
         })
       })
+
       return data
     } catch (err: any) {
       return { status: err.status, error: err.body.error }

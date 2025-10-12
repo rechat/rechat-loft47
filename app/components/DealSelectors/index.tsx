@@ -1,6 +1,6 @@
-import React from '@libs/react'
 import Ui from '@libs/material-ui'
-import SelectField from '../SelectField'
+import React from '@libs/react'
+
 import {
   dealTypes,
   dealSubTypes,
@@ -8,6 +8,7 @@ import {
   propertyType,
   saleStatus
 } from '../../core/utils'
+import SelectField from '../SelectField'
 
 interface Props {
   selectedDealType: string
@@ -92,4 +93,4 @@ const DealSelectors: React.FC<Props> = ({
   </>
 )
 
-export default DealSelectors 
+export default DealSelectors

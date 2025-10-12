@@ -1,4 +1,3 @@
-
 export const DealContexts = [
   {
     id: 'full_address',
@@ -87,7 +86,7 @@ export const dealSubTypes = [
   },
   {
     id: 'single_family_home',
-    label: 'Single Family Home' 
+    label: 'Single Family Home'
   },
   {
     id: 'condo_townhome',
@@ -110,7 +109,7 @@ export const dealSubTypes = [
     label: 'Multi-Family'
   },
   {
-    id: 'office', 
+    id: 'office',
     label: 'Office'
   },
   {
@@ -158,34 +157,26 @@ export const saleStatus = [
     id: 'collapsed',
     label: 'Collapsed'
   },
-  { 
+  {
     id: 'voided',
     label: 'Voided'
   }
 ]
 
 export const toISOWithOffset = (date: Date) => {
-  const tzOffset = -date.getTimezoneOffset(); // in minutes
-  const sign = tzOffset >= 0 ? '+' : '-';
-  const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0');
-  const hours = pad(tzOffset / 60);
-  const minutes = pad(tzOffset % 60);
-  const iso = date.toISOString().slice(0, -1); // remove 'Z'
-  return `${iso}${sign}${hours}:${minutes}`;
-}
+  const tzOffset = -date.getTimezoneOffset() // in minutes
+  const sign = tzOffset >= 0 ? '+' : '-'
+  const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0')
+  const hours = pad(tzOffset / 60)
+  const minutes = pad(tzOffset % 60)
+  const iso = date.toISOString().slice(0, -1) // remove 'Z'
 
-export const getBuyersNames = (roles: IDealRole[]) => {
-  const buyersNames = roles.filter(role => role.role === 'Buyer').map(role => role.legal_full_name)
-  return buyersNames.join(',')
-}
-
-export const getSellersNames = (roles: IDealRole[]) => {
-  const sellersNames = roles.filter(role => role.role === 'Seller').map(role => role.legal_full_name)
-  return sellersNames.join(',')
+  return `${iso}${sign}${hours}:${minutes}`
 }
 
 export const getMainAgent = (roles: IDealRole[], deal: IDeal) => {
   let main_agent_type = ''
+
   if (deal.deal_type === 'Buying') {
     main_agent_type = 'BuyerAgent'
   } else if (deal.deal_type === 'Selling') {
@@ -193,51 +184,82 @@ export const getMainAgent = (roles: IDealRole[], deal: IDeal) => {
   }
 
   const mainAgent = roles.find(role => role.role === main_agent_type)
+
   return mainAgent
 }
 
 export const getOtherAgents = (roles: IDealRole[], deal: IDeal) => {
   let other_agent_type = ''
+
   if (deal.deal_type === 'Buying') {
     other_agent_type = 'SellerAgent'
   } else if (deal.deal_type === 'Selling') {
     other_agent_type = 'BuyerAgent'
   }
+
   const otherAgents = roles.filter(role => role.role === other_agent_type)
+
   return otherAgents
 }
 
 export const getEmailsFromRoles = (roles: IDealRole[]) => {
   const emails = roles.map(role => role.email)
+
   return emails.join(',')
 }
 
 export const decideOwningSide = (deal: IDeal) => {
   let owningSide = ''
+
   if (deal.deal_type === 'Buying') {
     owningSide = 'sell'
   } else if (deal.deal_type === 'Selling') {
     owningSide = 'list'
   }
+
   const enderType = deal.context.ender_type?.text
-  owningSide = (enderType === 'OfficeDoubleEnder' || enderType === 'OfficeSingleEnder' || enderType === 'AgentDoubleEnder') ? 'double_end' : owningSide
+
+  owningSide =
+    enderType === 'OfficeDoubleEnder' ||
+    enderType === 'OfficeSingleEnder' ||
+    enderType === 'AgentDoubleEnder'
+      ? 'double_end'
+      : owningSide
+
   return owningSide
 }
 
 export const decideRoleType = (role: IDealRole) => {
-  if (role.role === 'BuyerAgent' || role.role === 'SellerAgent' || role.role === 'CoBuyerAgent' || role.role === 'CoSellerAgent') {
+  if (
+    role.role === 'BuyerAgent' ||
+    role.role === 'SellerAgent' ||
+    role.role === 'CoBuyerAgent' ||
+    role.role === 'CoSellerAgent'
+  ) {
     return 'agent'
-  } else if (role.role === 'Title') {
+  }
+
+  if (role.role === 'Title') {
     return 'title'
-  } else if (role.role === 'Buyer' || role.role === 'Seller' || role.role === 'Tenant' || role.role === 'Landlord') {
+  }
+
+  if (
+    role.role === 'Buyer' ||
+    role.role === 'Seller' ||
+    role.role === 'Tenant' ||
+    role.role === 'Landlord'
+  ) {
     return role.role.toLowerCase()
   }
+
   return 'other'
 }
 
 export const isAgentRole = (role: IDealRoleType) => {
-  return role === 'BuyerAgent' 
-    || role === 'SellerAgent' 
-    || role === 'CoBuyerAgent' 
-    || role === 'CoSellerAgent'
+  return (
+    role === 'BuyerAgent' ||
+    role === 'SellerAgent' ||
+    role === 'CoBuyerAgent' ||
+    role === 'CoSellerAgent'
+  )
 }

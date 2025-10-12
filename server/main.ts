@@ -3,14 +3,14 @@ import path from 'path'
 
 import compress from 'compression'
 import cors, { CorsOptions } from 'cors'
+import dotenv from 'dotenv'
 import express, { Request, Response, NextFunction } from 'express'
+import session from 'express-session'
 import enforce from 'express-sslify'
 import serveStatic from 'serve-static'
 import throng from 'throng'
 import webpack from 'webpack'
 import webpackDevMiddleware from 'webpack-dev-middleware'
-import session from 'express-session'
-import dotenv from 'dotenv'
 
 dotenv.config()
 
@@ -35,32 +35,33 @@ app.use(
     ) => {
       const isAssetRequest =
         /bundle\.\d+\.js|bundle\.js\?v=\w+/.test(req.originalUrl) ||
-        req.originalUrl.endsWith('.json');
+        req.originalUrl.endsWith('.json')
 
-      const allowedOrigins = ['https://app.rechat.com'];
-      const origin = req.header('Origin');
+      const allowedOrigins = ['https://app.rechat.com']
+      const origin = req.header('Origin')
 
       const allow =
-        isAssetRequest || (origin && allowedOrigins.includes(origin));
+        isAssetRequest || (origin && allowedOrigins.includes(origin))
 
       callback(null, {
         origin: allow,
-        credentials: true, // if you're using cookies/sessions
-      });
-      
+        credentials: true // if you're using cookies/sessions
+      })
     }
   )
 )
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || '',
-  resave: false,
-  saveUninitialized: true,
-  cookie: {
-    secure: isProduction, // true if using HTTPS
-    sameSite: 'lax'
-  }
-}));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || '',
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+      secure: isProduction, // true if using HTTPS
+      sameSite: 'lax'
+    }
+  })
+)
 
 app.use(routes)
 app.use(haltOnTimedout)

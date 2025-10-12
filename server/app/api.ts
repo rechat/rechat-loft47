@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios'
+import axios from 'axios'
 
 const API_URL = process.env.LOFT47_API_URL
 
@@ -26,7 +26,7 @@ export function handleAxiosError(error: unknown): APIError {
   // Fallback for non-Axios errors
   return {
     status: 500,
-    message: error instanceof Error ? error.message : String(error),
+    message: error instanceof Error ? error.message : String(error)
   }
 }
 
@@ -34,6 +34,6 @@ export function handleAxiosError(error: unknown): APIError {
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true
-});
+})
 
-export default api;
+export default api

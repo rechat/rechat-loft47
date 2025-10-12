@@ -1,5 +1,5 @@
-import React from '@libs/react'
 import Ui from '@libs/material-ui'
+import React from '@libs/react'
 
 interface Option {
   id: string
@@ -36,7 +36,7 @@ export const SelectField: React.FC<SelectFieldProps> = ({
         onChange={onChange}
         label={label}
       >
-        {options.map((opt) => (
+        {options.map(opt => (
           <Ui.MenuItem key={opt.id} value={opt.id}>
             {opt.label}
           </Ui.MenuItem>
@@ -46,4 +46,4 @@ export const SelectField: React.FC<SelectFieldProps> = ({
   </Ui.Grid>
 )
 
-export default SelectField 
+export default SelectField

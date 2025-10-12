@@ -1,5 +1,5 @@
-import React from '@libs/react'
 import Ui from '@libs/material-ui'
+import React from '@libs/react'
 
 interface Props {
   isLoading: boolean
@@ -45,4 +45,4 @@ const ActionButtons: React.FC<Props> = ({
   </Ui.Grid>
 )
 
-export default ActionButtons 
+export default ActionButtons

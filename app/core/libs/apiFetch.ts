@@ -22,7 +22,7 @@ export async function apiFetch(
   const url =
     endpoint.startsWith('http://') || endpoint.startsWith('https://')
       ? endpoint
-      : BASE_URL + endpoint;
+      : BASE_URL + endpoint
 
   const res = await fetch(url, {
     credentials: 'include',
@@ -30,8 +30,12 @@ export async function apiFetch(
   })
 
   if (!res.ok) {
-    const body = await res.clone().json().catch(() => null) // try parse JSON
+    const body = await res
+      .clone()
+      .json()
+      .catch(() => null) // try parse JSON
     const err = new Error(res.statusText) as any
+
     err.status = res.status
     err.body = body
     throw err
