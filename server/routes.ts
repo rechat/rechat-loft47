@@ -1,8 +1,7 @@
 import express from 'express'
 
 import {
-  signIn,
-  getBrandCredentials,
+  getAppConfig,
   createBrandCredentials,
   getBrandCredentialsByBrandId,
   createGetHandler,
@@ -21,14 +20,12 @@ const router = express.Router()
 // Basic routes
 router.get('/', home)
 router.get('/manifest.json', manifest)
-router.get('/:filename(bundle\\.\\d+\\.js)', bundle)
-// Brand credentials
-router.post('/loft47/brand_credentials/lookup', getBrandCredentials)
+// Get app configuration
+router.post('/loft47/app_config', getAppConfig)
 router.post('/loft47/brand_credentials', createBrandCredentials)
 router.get('/loft47/brand_credentials/:brand_id', getBrandCredentialsByBrandId)
 
-// Auth
-router.post('/loft47/sign_in', signIn)
+// Auth is now handled server-side in brand_credentials/lookup
 
 // Loft47 API proxy routes - simple pass-through
 router.get('/loft47/brokerages', createGetHandler('/brokerages'))

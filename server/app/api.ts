@@ -1,6 +1,4 @@
-import axios from 'axios'
-
-const API_URL = process.env.LOFT47_API_URL
+import axios, { AxiosInstance } from 'axios'
 
 type APIError = {
   status: number
@@ -30,10 +28,27 @@ export function handleAxiosError(error: unknown): APIError {
   }
 }
 
-// Create an Axios instance
-const api = axios.create({
-  baseURL: API_URL,
-  withCredentials: true
-})
+// Create an Axios instance for a specific API URL
+export function createApiInstance(baseURL: string): AxiosInstance {
+  return axios.create({
+    baseURL,
+    withCredentials: true,
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+  })
+}
 
-export default api
+// Create authenticated instance with token
+export function createAuthenticatedApiInstance(baseURL: string, token: string): AxiosInstance {
+  return axios.create({
+    baseURL,
+    withCredentials: true,
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': token
+    }
+  })
+}

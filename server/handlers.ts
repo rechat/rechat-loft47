@@ -1,115 +1,130 @@
 import { eq } from 'drizzle-orm'
 import { Request, Response } from 'express'
 
-import api, { handleAxiosError } from './app/api'
+import { createApiInstance, createAuthenticatedApiInstance, handleAxiosError } from './app/api'
 import { db } from './app/db'
 import { rechatLoft47DealsMapping, brandLoft47Credentials } from './db/schema'
 
 // Simple proxy handlers for Loft47 API calls
 
-export async function signIn(req: Request, res: Response) {
-  try {
-    // Extract API URL from request body if provided, fallback to environment
-    const { api_url, ...signInData } = req.body
-    const apiUrl =
-      api_url || process.env.LOFT47_API_URL || 'https://api.loft47.com/v1'
+// Middleware to authenticate with Loft47 based on brand hierarchy
+async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, appUrl?: string, isStaging?: boolean } | null> {
+  if (!brandIds || brandIds.length === 0) return null
+  
+  // Use the brand hierarchy provided
+  const brandHierarchy = brandIds
+  
+  // Look for credentials starting from current brand, going up the hierarchy
+  for (const brandId of brandHierarchy) {
+    const [credentials] = await db
+      .select()
+      .from(brandLoft47Credentials)
+      .where(eq(brandLoft47Credentials.brandId, brandId))
+    
+    if (credentials) {
+      // Set up API configuration
+      const apiUrl = credentials.isStaging 
+        ? 'https://api.staging.loft47.com/v1'
+        : 'https://api.loft47.com/v1'
+      
+      const appUrl = credentials.isStaging
+        ? 'https://staging.loft47.com'
+        : 'https://app.loft47.com'
 
-    // Create a new axios instance for this request with the correct base URL
-    const apiInstance = require('axios').create({
-      baseURL: apiUrl,
-      withCredentials: true
-    })
-
-    const response = await apiInstance.post('/sign_in', signInData, {
-      headers: { 'Content-Type': 'application/json' }
-    })
-
-    const token = response.headers.authorization
-
-    if (token) {
-      // Store the token and API URL in the default api instance for subsequent requests
-      api.defaults.headers.common['x-session-token'] = token
-      api.defaults.baseURL = apiUrl
-    }
-
-    res.status(response.status).json(response.data)
-  } catch (err: any) {
-    const error = handleAxiosError(err)
-
-    res.status(error.status).json({ error: error.message })
-  }
-}
-
-// Look up credentials for a brand hierarchy
-export async function getBrandCredentials(req: Request, res: Response) {
-  try {
-    const { brand } = req.body
-
-    if (!brand) {
-      return res.status(400).json({ error: 'Brand information required' })
-    }
-
-    // Build brand hierarchy array (current brand + all parents)
-    const brandHierarchy: string[] = []
-    let currentBrand = brand
-
-    while (currentBrand) {
-      brandHierarchy.push(currentBrand.id)
-      currentBrand = currentBrand.parent
-    }
-
-    // Look for credentials starting from current brand, going up the hierarchy
-    for (const brandId of brandHierarchy) {
-      const [credentials] = await db
-        .select()
-        .from(brandLoft47Credentials)
-        .where(eq(brandLoft47Credentials.brandId, brandId))
-
-      if (credentials) {
-        // Build URLs based on environment
-        const apiUrl = credentials.isStaging
-          ? 'https://api.staging.loft47.com/v1'
-          : 'https://api.loft47.com/v1'
-
-        const appUrl = credentials.isStaging
-          ? 'https://staging.loft47.com'
-          : 'https://app.loft47.com'
-
-        return res.json({
-          LOFT47_EMAIL: credentials.loft47Email,
-          LOFT47_PASSWORD: credentials.loft47Password,
-          LOFT47_API_URL: apiUrl,
-          LOFT47_APP_URL: appUrl,
-          IS_STAGING: credentials.isStaging,
-          BRAND_ID: credentials.brandId
+      // Create API instance for this brand
+      const api = createApiInstance(apiUrl)
+      
+      try {
+        // Authenticate with Loft47 server-side
+        const authResponse = await api.post('/sign_in', {
+          user: {
+            email: credentials.loft47Email,
+            password: credentials.loft47Password
+          }
         })
+        
+        const token = authResponse.headers.authorization
+        if (token) {
+          // Return authenticated API instance
+          const authenticatedApi = createAuthenticatedApiInstance(apiUrl, token)
+          return { api: authenticatedApi, appUrl, isStaging: credentials.isStaging }
+        }
+        
+        return { api, appUrl, isStaging: credentials.isStaging }
+        
+      } catch (authError: any) {
+        console.error('Loft47 authentication failed:', authError.message)
+        throw new Error('Authentication failed')
       }
     }
+  }
+  
+  return null
+}
 
-    // No credentials found in the hierarchy
-    res
-      .status(404)
-      .json({ error: 'No Loft47 credentials found for this brand hierarchy' })
-  } catch (error) {
-    console.error('Error getting brand credentials:', error)
-    res.status(500).json({ error: 'Database error' })
+// Get app configuration (URLs) for opening deals
+export async function getAppConfig(req: Request, res: Response) {
+  try {
+    const brandIds = req.body?.brand_ids
+    
+    if (!brandIds || !Array.isArray(brandIds) || brandIds.length === 0) {
+      return res.status(400).json({ error: 'Brand IDs array required' })
+    }
+    
+    // Just get the configuration without making API calls
+    const authResult = await authenticateWithLoft47(brandIds)
+    if (!authResult) {
+      return res.status(404).json({ error: 'No Loft47 credentials configured for this account' })
+    }
+    
+    res.json({
+      LOFT47_APP_URL: authResult.appUrl,
+      IS_STAGING: authResult.isStaging
+    })
+  } catch (err: any) {
+    if (err.message === 'Authentication failed') {
+      return res.status(401).json({ error: 'Loft47 authentication failed - please check credentials' })
+    }
+    res.status(500).json({ error: 'Server error' })
   }
 }
 
-// Generic proxy handler for GET requests
+// Generic proxy handler for GET requests with automatic authentication
 export function createGetHandler(path: string) {
   return async (req: Request, res: Response) => {
     try {
-      const response = await api.get(
-        path.replace(/:[^/]+/g, match => {
-          const param = match.slice(1)
-
-          return req.params[param] || match
-        })
-      )
-
+      // Extract brand IDs from request
+      const brandIdsQuery = req.query.brand_ids as string
+      const brandIds = brandIdsQuery ? brandIdsQuery.split(',') : []
+      
+      if (!brandIds || brandIds.length === 0) {
+        return res.status(400).json({ error: 'Brand IDs required' })
+      }
+      
+      // Authenticate with Loft47
+      const authResult = await authenticateWithLoft47(brandIds)
+      if (!authResult) {
+        return res.status(404).json({ error: 'No Loft47 credentials configured for this account' })
+      }
+      
+      const response = await authResult.api.get(path.replace(/:[^/]+/g, (match) => {
+        const param = match.slice(1)
+        return req.params[param] || match
+      }))
+      
       res.status(response.status).json(response.data)
     } catch (err: any) {
+      if (err.message === 'Authentication failed') {
+        return res.status(401).json({ error: 'Loft47 authentication failed - please check credentials' })
+      }
+      
+      // If the Loft47 API returned an error status, pass it through
+      if (err.response?.status) {
+        return res.status(err.response.status).json({ 
+          error: err.response.data?.message || err.response.data || err.message 
+        })
+      }
+      
       const error = handleAxiosError(err)
 
       res.status(error.status).json({ error: error.message })
@@ -117,24 +132,51 @@ export function createGetHandler(path: string) {
   }
 }
 
-// Generic proxy handler for POST requests
+// Generic proxy handler for POST requests with automatic authentication
 export function createPostHandler(path: string) {
   return async (req: Request, res: Response) => {
     try {
-      const response = await api.post(
-        path.replace(/:[^/]+/g, match => {
-          const param = match.slice(1)
-
-          return req.params[param] || match
-        }),
-        req.body,
-        {
-          headers: { 'Content-Type': 'application/json' }
-        }
-      )
-
+      const { brand_ids, ...data } = req.body
+      
+      if (!brand_ids || !Array.isArray(brand_ids) || brand_ids.length === 0) {
+        return res.status(400).json({ error: 'Brand IDs array required' })
+      }
+      
+      // Authenticate with Loft47
+      const authResult = await authenticateWithLoft47(brand_ids)
+      if (!authResult) {
+        return res.status(404).json({ error: 'No Loft47 credentials configured for this account' })
+      }
+      
+      const apiPath = path.replace(/:[^/]+/g, (match) => {
+        const param = match.slice(1)
+        return req.params[param] || match
+      })
+      
+      console.log('POST request to:', apiPath)
+      console.log('POST data:', JSON.stringify(data, null, 2))
+      
+      const response = await authResult.api.post(apiPath, data, {
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
       res.status(response.status).json(response.data)
     } catch (err: any) {
+      console.log('Error in POST handler:', err.message)
+      console.log('Error response status:', err.response?.status)
+      console.log('Error response data:', err.response?.data)
+      
+      if (err.message === 'Authentication failed') {
+        return res.status(401).json({ error: 'Loft47 authentication failed - please check credentials' })
+      }
+      
+      // If the Loft47 API returned an error status, pass it through
+      if (err.response?.status) {
+        return res.status(err.response.status).json({ 
+          error: err.response.data?.message || err.response.data || err.message 
+        })
+      }
+      
       const error = handleAxiosError(err)
 
       res.status(error.status).json({ error: error.message })
@@ -146,13 +188,24 @@ export function createPostHandler(path: string) {
 export function createPatchHandler(path: string) {
   return async (req: Request, res: Response) => {
     try {
-      const response = await api.patch(
+      const { brand_ids, ...data } = req.body
+      
+      if (!brand_ids || !Array.isArray(brand_ids) || brand_ids.length === 0) {
+        return res.status(400).json({ error: 'Brand IDs array required' })
+      }
+      
+      // Authenticate with Loft47
+      const authResult = await authenticateWithLoft47(brand_ids)
+      if (!authResult) {
+        return res.status(404).json({ error: 'No Loft47 credentials configured for this account' })
+      }
+      
+      const response = await authResult.api.patch(
         path.replace(/:[^/]+/g, match => {
           const param = match.slice(1)
-
           return req.params[param] || match
         }),
-        req.body,
+        data,
         {
           headers: { 'Content-Type': 'application/json' }
         }
@@ -160,8 +213,18 @@ export function createPatchHandler(path: string) {
 
       res.status(response.status).json(response.data)
     } catch (err: any) {
+      if (err.message === 'Authentication failed') {
+        return res.status(401).json({ error: 'Loft47 authentication failed - please check credentials' })
+      }
+      
+      // If the Loft47 API returned an error status, pass it through
+      if (err.response?.status) {
+        return res.status(err.response.status).json({ 
+          error: err.response.data?.message || err.response.data || err.message 
+        })
+      }
+      
       const error = handleAxiosError(err)
-
       res.status(error.status).json({ error: error.message })
     }
   }
@@ -171,18 +234,42 @@ export function createPatchHandler(path: string) {
 export function createDeleteHandler(path: string) {
   return async (req: Request, res: Response) => {
     try {
-      const response = await api.delete(
+      // Extract brand IDs from query or body
+      const brandIdsQuery = req.query.brand_ids as string
+      const brandIdsBody = req.body?.brand_ids
+      const brandIds = brandIdsQuery ? brandIdsQuery.split(',') : brandIdsBody || []
+      
+      if (!brandIds || brandIds.length === 0) {
+        return res.status(400).json({ error: 'Brand IDs required' })
+      }
+      
+      // Authenticate with Loft47
+      const authResult = await authenticateWithLoft47(brandIds)
+      if (!authResult) {
+        return res.status(404).json({ error: 'No Loft47 credentials configured for this account' })
+      }
+      
+      const response = await authResult.api.delete(
         path.replace(/:[^/]+/g, match => {
           const param = match.slice(1)
-
           return req.params[param] || match
         })
       )
 
       res.status(response.status).json(response.data)
     } catch (err: any) {
+      if (err.message === 'Authentication failed') {
+        return res.status(401).json({ error: 'Loft47 authentication failed - please check credentials' })
+      }
+      
+      // If the Loft47 API returned an error status, pass it through
+      if (err.response?.status) {
+        return res.status(err.response.status).json({ 
+          error: err.response.data?.message || err.response.data || err.message 
+        })
+      }
+      
       const error = handleAxiosError(err)
-
       res.status(error.status).json({ error: error.message })
     }
   }

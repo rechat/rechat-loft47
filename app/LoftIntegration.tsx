@@ -134,10 +134,12 @@ export default function LoftIntegration({
     try {
       // Build brand hierarchy for selection
       const hierarchy: any[] = []
+      const brandIds: string[] = []
       let currentBrand = deal.brand
 
       while (currentBrand) {
         hierarchy.push(currentBrand)
+        brandIds.push(currentBrand.id)
         currentBrand = currentBrand.parent
       }
 
@@ -148,35 +150,30 @@ export default function LoftIntegration({
         setSelectedBrandId(hierarchy[hierarchy.length - 1].id)
       }
 
-      // 1. Get brand credentials from hierarchy
-      const credentials = await api.getBrandCredentials(deal.brand)
-
-      if (credentials.error) {
+      // 1. Get brokerages (authentication happens automatically)
+      const brokData = await api.getBrokerages(brandIds)
+      if (brokData.error) {
+        if (brokData.status === 404) {
+          setNeedsCredentials(true)
+          setIsInitializing(false)
+          return
+        }
+        showStatus('Could not connect to Loft47', 'warning')
+        setIsInitializing(false)
+        return
+      }
+      
+      // 2. Get app configuration for URLs
+      const config = await api.getAppConfig(brandIds)
+      if (config.error) {
         setNeedsCredentials(true)
         setIsInitializing(false)
 
         return
       }
-
-      const auth = await api.signIn(
-        credentials.LOFT47_EMAIL,
-        credentials.LOFT47_PASSWORD,
-        credentials.LOFT47_API_URL
-      )
-
-      if (auth.error) {
-        setNeedsCredentials(true)
-        setIsInitializing(false)
-
-        return
-      }
-
-      setLoft47Url(credentials.LOFT47_APP_URL || '')
-
-      // 2. Get brokerages
-      const brokData = await api.getBrokerages()
-
-      if (brokData.error || !brokData.data?.length) {
+      
+      setLoft47Url(config.LOFT47_APP_URL || '')
+      if (!brokData.data?.length) {
         showStatus('Ready to sync - no brokerages found')
         setIsInitializing(false)
 
@@ -218,12 +215,9 @@ export default function LoftIntegration({
       setLoft47DealId(mapping.loft47_deal_id)
       // Set the brokerage for existing deals
       setSelectedBrokerageId(brokerage.id)
-
-      const existingDeal = await api.getDeal(
-        brokerage.id,
-        mapping.loft47_deal_id
-      )
-
+      
+      const existingDeal = await api.getDeal(brokerage.id, mapping.loft47_deal_id, brandIds)
+      
       if (existingDeal.error) {
         showStatus(
           'Deal was synced before but could not fetch current data',
@@ -358,11 +352,16 @@ export default function LoftIntegration({
   }
 
   const findOrCreateAgent = async (brokerageId: string, agent: any) => {
-    const profiles = await api.getProfiles(brokerageId, { email: agent.email })
-
-    if (profiles.error) {
-      return null
+    // Build brand IDs array
+    const brandIds: string[] = []
+    let currentBrand = deal.brand
+    while (currentBrand) {
+      brandIds.push(currentBrand.id)
+      currentBrand = currentBrand.parent
     }
+    
+    const profiles = await api.getProfiles(brokerageId, { email: agent.email }, brandIds)
+    if (profiles.error) return null
 
     if (profiles.data.length > 0) {
       return profiles.data[0]
@@ -376,12 +375,16 @@ export default function LoftIntegration({
           type: 'Agent'
         }
       }
-    })
+    }, brandIds)
 
     return newAgent.error ? null : newAgent.data
   }
 
   const buildDealPayload = (agent: any) => {
+    console.log('buildDealPayload - agent object:', agent)
+    console.log('buildDealPayload - agent.id:', agent.id)
+    console.log('buildDealPayload - agent.attributes?.id:', agent.attributes?.id)
+    
     const closingDate = getDealContext('closing_date')?.date
     const possessionDate = getDealContext('possession_date')?.date
 
@@ -389,22 +392,40 @@ export default function LoftIntegration({
     const isValidDate = (timestamp: any) => {
       return timestamp && timestamp > 0
     }
-
+    
+    const salesPrice = getDealContext('sales_price')?.text
+    const leasedPrice = getDealContext('leased_price')?.text
+    const blockNumber = getDealContext('block_number')?.text
+    const lotNumber = getDealContext('lot_number')?.text
+    const mlsNum = getDealContext('mls_number')?.text
+    const isLease = dealType === 'lease'
+    
+    console.log('Deal context values:', {
+      salesPrice,
+      leasedPrice,
+      isLease,
+      dealType
+    })
+    
     const payload: any = {
       data: {
         attributes: {
-          ownerId: Number(agent.id),
-          dealSubType,
-          dealType,
-          leadSource,
-          propertyType,
-          saleStatus,
+          ownerId: Number(agent.id || agent.attributes?.id),
+          ...(blockNumber && { block: blockNumber }),
+          adjustmentAt: new Date().toISOString(),
+          dealSubType: dealSubType,
+          dealType: dealType,
+          leadSource: leadSource,
+          propertyType: propertyType,
+          saleStatus: saleStatus,
           exclusive: !deal.listing,
           externalTransactionId: deal.id,
+          ...(lotNumber && { lot: lotNumber }),
+          ...(mlsNum && { mlsNumber: mlsNum }),
           offer: deal.deal_type === 'Buying',
           owningSide: decideOwningSide(deal),
-          ownerName: agent.attributes.name,
-          sellPrice: getDealContext('sales_price')?.text,
+          ownerName: agent.attributes?.name || agent.name,
+          ...(isLease ? leasedPrice && { sellPrice: leasedPrice } : salesPrice && { sellPrice: salesPrice }),
           teamDeal: deal.brand.brand_type === 'Team'
         }
       }
@@ -449,8 +470,15 @@ export default function LoftIntegration({
   }
 
   const createNewDeal = async (brokerageId: string, dealPayload: any) => {
-    const newDeal = await api.createDeal(brokerageId, dealPayload)
-
+    // Build brand IDs array
+    const brandIds: string[] = []
+    let currentBrand = deal.brand
+    while (currentBrand) {
+      brandIds.push(currentBrand.id)
+      currentBrand = currentBrand.parent
+    }
+    
+    const newDeal = await api.createDeal(brokerageId, dealPayload, brandIds)
     if (newDeal.error) {
       showStatus('Deal creation failed', 'warning')
 
@@ -520,11 +548,16 @@ export default function LoftIntegration({
   }
 
   const findOrCreateProfile = async (brokerageId: string, role: any) => {
-    const profiles = await api.getProfiles(brokerageId, { email: role.email })
-
-    if (profiles.error) {
-      return null
+    // Build brand IDs array
+    const brandIds: string[] = []
+    let currentBrand = deal.brand
+    while (currentBrand) {
+      brandIds.push(currentBrand.id)
+      currentBrand = currentBrand.parent
     }
+    
+    const profiles = await api.getProfiles(brokerageId, { email: role.email }, brandIds)
+    if (profiles.error) return null
 
     if (profiles.data.length > 0) {
       return profiles.data[0]
@@ -539,7 +572,7 @@ export default function LoftIntegration({
           type: roleType === 'agent' ? 'Agent' : 'Profile'
         }
       }
-    })
+    }, brandIds)
 
     return newProfile.error ? null : newProfile.data
   }
@@ -737,22 +770,8 @@ export default function LoftIntegration({
                 Use Staging Environment
               </Ui.Typography>
             </div>
-
-            {credentialsIsStaging && (
-              <div
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 4,
-                  backgroundColor: '#d1ecf1',
-                  border: '1px solid #bee5eb',
-                  color: '#0c5460',
-                  fontSize: '0.8rem'
-                }}
-              >
-                Staging: api.staging.loft47.com → staging.loft47.com
-              </div>
-            )}
-
+            
+            
             {/* Save Button */}
             <Ui.Button
               variant="contained"

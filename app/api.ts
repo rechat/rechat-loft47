@@ -2,32 +2,13 @@ import { apiFetch } from '@libs/apiFetch'
 
 // Simple API wrapper for Loft47 integration
 export const api = {
-  // Auth
-  async signIn(email: string, password: string, apiUrl?: string) {
+  // Get app configuration (URLs for opening deals)
+  async getAppConfig(brandIds: string[]) {
     try {
-      const payload: any = { user: { email, password } }
-
-      if (apiUrl) {
-        payload.api_url = apiUrl
-      }
-
-      return await apiFetch('/loft47/sign_in', {
+      return await apiFetch('/loft47/app_config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-    } catch (err: any) {
-      return { error: err.body?.error, status: err.status }
-    }
-  },
-
-  // Get brand credentials
-  async getBrandCredentials(brand: any) {
-    try {
-      return await apiFetch('/loft47/brand_credentials/lookup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brand })
+        body: JSON.stringify({ brand_ids: brandIds })
       })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
@@ -69,34 +50,31 @@ export const api = {
   },
 
   // Brokerages
-  async getBrokerages() {
+  async getBrokerages(brandIds: string[]) {
     try {
-      return await apiFetch('/loft47/brokerages', { method: 'GET' })
+      const params = new URLSearchParams({ brand_ids: brandIds.join(',') })
+      return await apiFetch(`/loft47/brokerages?${params}`, { method: 'GET' })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
   },
 
   // Profiles
-  async getProfiles(brokerageId: string, filters: Record<string, string>) {
+  async getProfiles(brokerageId: string, filters: Record<string, string>, brandIds: string[]) {
     try {
-      const params = new URLSearchParams(filters)
-
-      return await apiFetch(
-        `/loft47/brokerages/${brokerageId}/profiles?${params}`,
-        { method: 'GET' }
-      )
+      const params = new URLSearchParams({ ...filters, brand_ids: brandIds.join(',') })
+      return await apiFetch(`/loft47/brokerages/${brokerageId}/profiles?${params}`, { method: 'GET' })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
   },
 
-  async createProfile(brokerageId: string, profile: any) {
+  async createProfile(brokerageId: string, profile: any, brandIds: string[]) {
     try {
       return await apiFetch(`/loft47/brokerages/${brokerageId}/profiles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile)
+        body: JSON.stringify({ ...profile, brand_ids: brandIds })
       })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
@@ -119,24 +97,22 @@ export const api = {
   },
 
   // Deals
-  async createDeal(brokerageId: string, deal: any) {
+  async createDeal(brokerageId: string, deal: any, brandIds: string[]) {
     try {
       return await apiFetch(`/loft47/brokerages/${brokerageId}/deals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(deal)
+        body: JSON.stringify({ ...deal, brand_ids: brandIds })
       })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
   },
 
-  async getDeal(brokerageId: string, dealId: string) {
+  async getDeal(brokerageId: string, dealId: string, brandIds: string[]) {
     try {
-      return await apiFetch(
-        `/loft47/brokerages/${brokerageId}/deals/${dealId}`,
-        { method: 'GET' }
-      )
+      const params = new URLSearchParams({ brand_ids: brandIds.join(',') })
+      return await apiFetch(`/loft47/brokerages/${brokerageId}/deals/${dealId}?${params}`, { method: 'GET' })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
