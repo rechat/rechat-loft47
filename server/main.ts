@@ -28,27 +28,10 @@ app.use(compress())
 app.use(express.json())
 
 app.use(
-  cors(
-    (
-      req: Request,
-      callback: (err: Error | null, options?: CorsOptions) => void
-    ) => {
-      const isAssetRequest =
-        /bundle\.\d+\.js|bundle\.js\?v=\w+/.test(req.originalUrl) ||
-        req.originalUrl.endsWith('.json')
-
-      const allowedOrigins = ['https://app.rechat.com']
-      const origin = req.header('Origin')
-
-      const allow =
-        isAssetRequest || (origin && allowedOrigins.includes(origin))
-
-      callback(null, {
-        origin: allow,
-        credentials: true // if you're using cookies/sessions
-      })
-    }
-  )
+  cors({
+    origin: ['https://app.rechat.com'],
+    credentials: true
+  })
 )
 
 app.use(
@@ -83,7 +66,7 @@ if (isDevelopment) {
 if (isProduction) {
   app.set('trust proxy', 1)
   app.disable('x-powered-by')
-  // app.use(enforce.HTTPS())
+  app.use(enforce.HTTPS())
 
   app.use(
     '/',
