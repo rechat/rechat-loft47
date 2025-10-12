@@ -1,13 +1,13 @@
-type DealType = 
+type DealType =
   | 'standard'
   | 'project_or_new_construction'
   | 'property_management'
   | 'referral'
-  | 'lease';
+  | 'lease'
 
-type LeadSource = 'company' | 'agent';
+type LeadSource = 'company' | 'agent'
 
-type DealSubType = 
+type DealSubType =
   | 'unknown'
   | 'single_family_home'
   | 'condo_townhome'
@@ -16,18 +16,24 @@ type DealSubType =
   | 'land'
   | 'multi_family'
   | 'office'
-  | 'retail';
+  | 'retail'
 
-type PropertyType = 'residential' | 'commercial';
+type PropertyType = 'residential' | 'commercial'
 
-type SaleStatus = 'conditional' | 'firm' | 'closed' | 'collapsed' | 'voided';
+type SaleStatus = 'conditional' | 'firm' | 'closed' | 'collapsed' | 'voided'
 
 type Loft47Brokerage = {
   id: string
   [key: string]: unknown
 }
 
-type ProfileType = 'Agent' | 'Broker' | 'Conveyancer' | 'OfficeAdmin' | 'Organization' | 'Profile';
+type ProfileType =
+  | 'Agent'
+  | 'Broker'
+  | 'Conveyancer'
+  | 'OfficeAdmin'
+  | 'Organization'
+  | 'Profile'
 
 type ProfileFilters = {
   email: string

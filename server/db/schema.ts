@@ -1,4 +1,11 @@
-import { pgTable, serial, varchar, timestamp, uuid, boolean } from 'drizzle-orm/pg-core'
+import {
+  pgTable,
+  serial,
+  varchar,
+  timestamp,
+  uuid,
+  boolean
+} from 'drizzle-orm/pg-core'
 
 export const rechatLoft47DealsMapping = pgTable('rechat_loft47_deals_mapping', {
   id: serial('id').primaryKey(), // int4 with sequence = serial

@@ -3,7 +3,7 @@ import React from '@libs/react'
 import LoftIntegration from './LoftIntegration'
 
 interface EntryProps {
-  models: { deal: any, roles: any[], user: any }
+  models: { deal: any; roles: any[]; user: any }
   api: {
     getDealContext: (id: string) => any
     updateDealContext: any
@@ -12,6 +12,6 @@ interface EntryProps {
   }
 }
 
-export const App: React.FC<EntryProps> = (props) => {
+export const App: React.FC<EntryProps> = props => {
   return <LoftIntegration {...props} />
 }

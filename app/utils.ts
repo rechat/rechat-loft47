@@ -49,6 +49,7 @@ export const dealContexts = [
 // Helper functions
 export function getMainAgent(roles: any[], deal: any) {
   const agentType = deal.deal_type === 'Buying' ? 'BuyerAgent' : 'SellerAgent'
+
   return roles.find(role => role.role === agentType)
 }
 
@@ -57,43 +58,64 @@ export function formatDate(timestamp: number) {
   if (!timestamp || timestamp <= 0) {
     return null
   }
-  
+
   const date = new Date(timestamp * 1000)
-  
+
   // Check if the resulting date is valid
   if (isNaN(date.getTime())) {
     return null
   }
-  
+
   const tzOffset = -date.getTimezoneOffset()
   const sign = tzOffset >= 0 ? '+' : '-'
   const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0')
   const hours = pad(tzOffset / 60)
   const minutes = pad(tzOffset % 60)
   const iso = date.toISOString().slice(0, -1)
+
   return `${iso}${sign}${hours}:${minutes}`
 }
 
 export function decideRoleType(role: any) {
-  if (['BuyerAgent', 'SellerAgent', 'CoBuyerAgent', 'CoSellerAgent'].includes(role.role)) {
+  if (
+    ['BuyerAgent', 'SellerAgent', 'CoBuyerAgent', 'CoSellerAgent'].includes(
+      role.role
+    )
+  ) {
     return 'agent'
   }
-  if (role.role === 'Title') return 'title'
+
+  if (role.role === 'Title') {
+    return 'title'
+  }
+
   if (['Buyer', 'Seller', 'Tenant', 'Landlord'].includes(role.role)) {
     return role.role.toLowerCase()
   }
+
   return 'other'
 }
 
 export function isAgentRole(roleType: string) {
-  return ['BuyerAgent', 'SellerAgent', 'CoBuyerAgent', 'CoSellerAgent'].includes(roleType)
+  return [
+    'BuyerAgent',
+    'SellerAgent',
+    'CoBuyerAgent',
+    'CoSellerAgent'
+  ].includes(roleType)
 }
 
 export function decideOwningSide(deal: any) {
   let side = deal.deal_type === 'Buying' ? 'sell' : 'list'
   const enderType = deal.context.ender_type?.text
-  if (['OfficeDoubleEnder', 'OfficeSingleEnder', 'AgentDoubleEnder'].includes(enderType)) {
+
+  if (
+    ['OfficeDoubleEnder', 'OfficeSingleEnder', 'AgentDoubleEnder'].includes(
+      enderType
+    )
+  ) {
     side = 'double_end'
   }
+
   return side
 }

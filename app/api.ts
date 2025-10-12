@@ -6,10 +6,11 @@ export const api = {
   async signIn(email: string, password: string, apiUrl?: string) {
     try {
       const payload: any = { user: { email, password } }
+
       if (apiUrl) {
         payload.api_url = apiUrl
       }
-      
+
       return await apiFetch('/loft47/sign_in', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -34,7 +35,12 @@ export const api = {
   },
 
   // Create/update brand credentials
-  async createBrandCredentials(brandId: string, email: string, password: string, isStaging: boolean = false) {
+  async createBrandCredentials(
+    brandId: string,
+    email: string,
+    password: string,
+    isStaging: boolean = false
+  ) {
     try {
       return await apiFetch('/loft47/brand_credentials', {
         method: 'POST',
@@ -54,7 +60,9 @@ export const api = {
   // Get credentials for specific brand
   async getBrandCredentialsByBrandId(brandId: string) {
     try {
-      return await apiFetch(`/loft47/brand_credentials/${brandId}`, { method: 'GET' })
+      return await apiFetch(`/loft47/brand_credentials/${brandId}`, {
+        method: 'GET'
+      })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
@@ -73,7 +81,11 @@ export const api = {
   async getProfiles(brokerageId: string, filters: Record<string, string>) {
     try {
       const params = new URLSearchParams(filters)
-      return await apiFetch(`/loft47/brokerages/${brokerageId}/profiles?${params}`, { method: 'GET' })
+
+      return await apiFetch(
+        `/loft47/brokerages/${brokerageId}/profiles?${params}`,
+        { method: 'GET' }
+      )
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
@@ -93,11 +105,14 @@ export const api = {
 
   async updateProfile(brokerageId: string, profileId: string, profile: any) {
     try {
-      return await apiFetch(`/loft47/brokerages/${brokerageId}/profiles/${profileId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile)
-      })
+      return await apiFetch(
+        `/loft47/brokerages/${brokerageId}/profiles/${profileId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(profile)
+        }
+      )
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
@@ -118,7 +133,10 @@ export const api = {
 
   async getDeal(brokerageId: string, dealId: string) {
     try {
-      return await apiFetch(`/loft47/brokerages/${brokerageId}/deals/${dealId}`, { method: 'GET' })
+      return await apiFetch(
+        `/loft47/brokerages/${brokerageId}/deals/${dealId}`,
+        { method: 'GET' }
+      )
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
@@ -126,11 +144,14 @@ export const api = {
 
   async updateDeal(brokerageId: string, dealId: string, deal: any) {
     try {
-      return await apiFetch(`/loft47/brokerages/${brokerageId}/deals/${dealId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(deal)
-      })
+      return await apiFetch(
+        `/loft47/brokerages/${brokerageId}/deals/${dealId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(deal)
+        }
+      )
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
@@ -152,7 +173,10 @@ export const api = {
   // Deal accesses
   async getDealAccesses(brokerageId: string, dealId: string) {
     try {
-      return await apiFetch(`/loft47/brokerages/${brokerageId}/deals/${dealId}/accesses`, { method: 'GET' })
+      return await apiFetch(
+        `/loft47/brokerages/${brokerageId}/deals/${dealId}/accesses`,
+        { method: 'GET' }
+      )
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
@@ -160,22 +184,32 @@ export const api = {
 
   async createDealAccess(brokerageId: string, dealId: string, access: any) {
     try {
-      return await apiFetch(`/loft47/brokerages/${brokerageId}/deals/${dealId}/accesses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(access)
-      })
+      return await apiFetch(
+        `/loft47/brokerages/${brokerageId}/deals/${dealId}/accesses`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(access)
+        }
+      )
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
   },
 
-  async deleteDealAccess(brokerageId: string, dealId: string, accessId: string) {
+  async deleteDealAccess(
+    brokerageId: string,
+    dealId: string,
+    accessId: string
+  ) {
     try {
-      return await apiFetch(`/loft47/brokerages/${brokerageId}/deals/${dealId}/accesses/${accessId}`, {
-        method: 'DELETE',
-        parseJson: false
-      })
+      return await apiFetch(
+        `/loft47/brokerages/${brokerageId}/deals/${dealId}/accesses/${accessId}`,
+        {
+          method: 'DELETE',
+          parseJson: false
+        }
+      )
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
@@ -184,7 +218,10 @@ export const api = {
   // Deal access roles
   async getDealAccessRoles(brokerageId: string) {
     try {
-      return await apiFetch(`/loft47/brokerages/${brokerageId}/deal_access_roles`, { method: 'GET' })
+      return await apiFetch(
+        `/loft47/brokerages/${brokerageId}/deal_access_roles`,
+        { method: 'GET' }
+      )
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
@@ -192,11 +229,14 @@ export const api = {
 
   async createDealAccessRole(brokerageId: string, role: any) {
     try {
-      return await apiFetch(`/loft47/brokerages/${brokerageId}/deal_access_roles`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(role)
-      })
+      return await apiFetch(
+        `/loft47/brokerages/${brokerageId}/deal_access_roles`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(role)
+        }
+      )
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
     }
@@ -205,9 +245,14 @@ export const api = {
   // Deal mappings
   async getMapping(rechatDealId: string) {
     try {
-      return await apiFetch(`/loft47/deal_mappings/rechat/${rechatDealId}`, { method: 'GET' })
+      return await apiFetch(`/loft47/deal_mappings/rechat/${rechatDealId}`, {
+        method: 'GET'
+      })
     } catch (err: any) {
-      if (err.status === 404) return { notFound: true }
+      if (err.status === 404) {
+        return { notFound: true }
+      }
+
       return { error: err.body?.error, status: err.status }
     }
   },
@@ -217,7 +262,10 @@ export const api = {
       return await apiFetch('/loft47/deal_mappings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rechat_deal_id: rechatDealId, loft47_deal_id: loft47DealId })
+        body: JSON.stringify({
+          rechat_deal_id: rechatDealId,
+          loft47_deal_id: loft47DealId
+        })
       })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
