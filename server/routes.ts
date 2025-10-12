@@ -1,138 +1,50 @@
 import express from 'express'
-
-import { getPublicEnv } from './app/controllers/env'
-import homeRoute from './app/controllers/home'
 import {
-  retrieveAddress,
-  updateAddress
-} from './app/controllers/loft47/addresses'
-import { signIn } from './app/controllers/loft47/auth'
-import {
-  createBrokerageDealAccessRole,
-  deleteBrokerageDealAccessRole,
-  retrieveBrokerageDealAccessRole,
-  retrieveBrokerageDealAccessRoles,
-  updateBrokerageDealAccessRole
-} from './app/controllers/loft47/brokerage_deal_access_roles'
-import {
-  getBrokerageDeals,
-  getBrokerageDeal,
-  createBrokerageDeal,
-  updateBrokerageDeal
-} from './app/controllers/loft47/brokerage_deals'
-import {
-  createBrokerageDealProfileAccess,
-  deleteBrokerageDealProfileAccess,
-  retrieveBrokerageDealProfileAccess,
-  retrieveBrokerageDealProfileAccesses,
-  updateBrokerageDealProfileAccess
-} from './app/controllers/loft47/brokerage_deals_profile_accesses'
-import {
-  createBrokerageProfile,
-  getBrokerageProfile,
-  getBrokerageProfiles,
-  updateBrokerageProfile
-} from './app/controllers/loft47/brokerage_profiles'
-import {
-  retrieveBrokerages,
-  createBrokerage,
-  getBrokerage,
-  updateBrokerage,
-  deleteBrokerage
-} from './app/controllers/loft47/brokerages'
-import {
-  listMappings,
-  showMapping,
-  addMapping,
-  showMappingByRechatDealId,
-  showMappingByLoft47DealId
-} from './app/controllers/loft47/deals_mapping'
-import manifestRoute from './app/controllers/manifest'
+  signIn,
+  getConfig,
+  createGetHandler,
+  createPostHandler,
+  createPatchHandler,
+  createDeleteHandler,
+  getMapping,
+  createMapping,
+  home,
+  manifest
+} from './handlers'
 
 const router = express.Router()
 
-router.get('/', homeRoute)
+// Basic routes
+router.get('/', home)
+router.get('/manifest.json', manifest)
+router.get('/config/env', getConfig)
 
-/**
- * Please don't remove this route
- */
-router.get('/manifest.json', manifestRoute)
-
-// Public env variables for front-end runtime
-router.get('/config/env', getPublicEnv)
-
+// Auth
 router.post('/loft47/sign_in', signIn)
 
-router.route('/loft47/brokerages').get(retrieveBrokerages).post(createBrokerage)
+// Loft47 API proxy routes - simple pass-through
+router.get('/loft47/brokerages', createGetHandler('/brokerages'))
+router.post('/loft47/brokerages', createPostHandler('/brokerages'))
 
-router
-  .route('/loft47/brokerages/:id')
-  .get(getBrokerage)
-  .patch(updateBrokerage)
-  .delete(deleteBrokerage)
+router.get('/loft47/brokerages/:brokerage_id/profiles', createGetHandler('/brokerages/:brokerage_id/profiles'))
+router.post('/loft47/brokerages/:brokerage_id/profiles', createPostHandler('/brokerages/:brokerage_id/profiles'))
+router.patch('/loft47/brokerages/:brokerage_id/profiles/:profile_id', createPatchHandler('/brokerages/:brokerage_id/profiles/:profile_id'))
 
-router
-  .route('/loft47/brokerages/:brokerage_id/profiles')
-  .get(getBrokerageProfiles)
-  .post(createBrokerageProfile)
+router.get('/loft47/brokerages/:brokerage_id/deals', createGetHandler('/brokerages/:brokerage_id/deals'))
+router.post('/loft47/brokerages/:brokerage_id/deals', createPostHandler('/brokerages/:brokerage_id/deals'))
+router.patch('/loft47/brokerages/:brokerage_id/deals/:deal_id', createPatchHandler('/brokerages/:brokerage_id/deals/:deal_id'))
 
-router
-  .route('/loft47/brokerages/:brokerage_id/profiles/:profile_id')
-  .get(getBrokerageProfile)
-  .patch(updateBrokerageProfile)
+router.get('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses', createGetHandler('/brokerages/:brokerage_id/deals/:deal_id/accesses'))
+router.post('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses', createPostHandler('/brokerages/:brokerage_id/deals/:deal_id/accesses'))
+router.delete('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses/:profile_access_id', createDeleteHandler('/brokerages/:brokerage_id/deals/:deal_id/accesses/:profile_access_id'))
 
-router
-  .route('/loft47/brokerages/:brokerage_id/deals')
-  .get(getBrokerageDeals)
-  .post(createBrokerageDeal)
+router.get('/loft47/brokerages/:brokerage_id/deal_access_roles', createGetHandler('/brokerages/:brokerage_id/deal_access_roles'))
+router.post('/loft47/brokerages/:brokerage_id/deal_access_roles', createPostHandler('/brokerages/:brokerage_id/deal_access_roles'))
 
-router
-  .route('/loft47/brokerages/:brokerage_id/deals/:deal_id')
-  .get(getBrokerageDeal)
-  .patch(updateBrokerageDeal)
+router.patch('/loft47/addresses/:address_id', createPatchHandler('/addresses/:address_id'))
 
-router
-  .route('/loft47/brokerages/:brokerage_id/deal_access_roles')
-  .get(retrieveBrokerageDealAccessRoles)
-  .post(createBrokerageDealAccessRole)
-
-router
-  .route(
-    '/loft47/brokerages/:brokerage_id/deal_access_roles/:deal_access_role_id'
-  )
-  .get(retrieveBrokerageDealAccessRole)
-  .patch(updateBrokerageDealAccessRole)
-  .delete(deleteBrokerageDealAccessRole)
-
-router
-  .route('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses')
-  .get(retrieveBrokerageDealProfileAccesses)
-  .post(createBrokerageDealProfileAccess)
-
-router
-  .route(
-    '/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses/:profile_access_id'
-  )
-  .get(retrieveBrokerageDealProfileAccess)
-  .patch(updateBrokerageDealProfileAccess)
-  .delete(deleteBrokerageDealProfileAccess)
-
-router
-  .route('/loft47/addresses/:address_id')
-  .get(retrieveAddress)
-  .patch(updateAddress)
-
-// Deal mappings routes
-router
-  .route('/loft47/deal_mappings')
-  .get(listMappings) // list all mappings
-  .post(addMapping) // create new mapping
-
-// generic lookup by primary id (uuid)
-router.get('/loft47/deal_mappings/:id', showMapping)
-
-// lookup routes (define BEFORE generic :id to avoid shadowing)
-router.get('/loft47/deal_mappings/loft47/:deal_id', showMappingByLoft47DealId) // by loft47_deal_id
-router.get('/loft47/deal_mappings/rechat/:deal_id', showMappingByRechatDealId) // by rechat_deal_id
+// Deal mappings - custom logic
+router.get('/loft47/deal_mappings/rechat/:deal_id', getMapping)
+router.post('/loft47/deal_mappings', createMapping)
 
 export default router
