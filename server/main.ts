@@ -83,13 +83,11 @@ if (isDevelopment) {
 if (isProduction) {
   app.set('trust proxy', 1)
   app.disable('x-powered-by')
-  app.use(enforce.HTTPS())
+  // app.use(enforce.HTTPS())
 
   app.use(
     '/',
-    serveStatic(path.resolve(__dirname, '../../dist-web'), {
-      maxAge: '7d'
-    })
+    serveStatic(path.resolve(__dirname, '../dist-web'))
   )
 }
 

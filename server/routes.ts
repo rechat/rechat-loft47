@@ -10,16 +10,13 @@ import {
   createDeleteHandler,
   getMapping,
   createMapping,
-  home,
-  manifest,
-  bundle
+  home
 } from './handlers'
 
 const router = express.Router()
 
 // Basic routes
 router.get('/', home)
-router.get('/manifest.json', manifest)
 // Get app configuration
 router.post('/loft47/app_config', getAppConfig)
 router.post('/loft47/brand_credentials', createBrandCredentials)
