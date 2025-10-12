@@ -118,14 +118,14 @@ export const api = {
     }
   },
 
-  async updateDeal(brokerageId: string, dealId: string, deal: any) {
+  async updateDeal(brokerageId: string, dealId: string, deal: any, brandIds: string[]) {
     try {
       return await apiFetch(
         `/loft47/brokerages/${brokerageId}/deals/${dealId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(deal)
+          body: JSON.stringify({ ...deal, brand_ids: brandIds })
         }
       )
     } catch (err: any) {
@@ -134,12 +134,12 @@ export const api = {
   },
 
   // Address
-  async updateAddress(addressId: string, address: any) {
+  async updateAddress(addressId: string, address: any, brandIds: string[]) {
     try {
       return await apiFetch(`/loft47/addresses/${addressId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(address)
+        body: JSON.stringify({ ...address, brand_ids: brandIds })
       })
     } catch (err: any) {
       return { error: err.body?.error, status: err.status }
@@ -158,14 +158,14 @@ export const api = {
     }
   },
 
-  async createDealAccess(brokerageId: string, dealId: string, access: any) {
+  async createDealAccess(brokerageId: string, dealId: string, access: any, brandIds: string[]) {
     try {
       return await apiFetch(
         `/loft47/brokerages/${brokerageId}/deals/${dealId}/accesses`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(access)
+          body: JSON.stringify({ ...access, brand_ids: brandIds })
         }
       )
     } catch (err: any) {

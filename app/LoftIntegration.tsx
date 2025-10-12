@@ -13,7 +13,8 @@ import {
   decideRoleType,
   isAgentRole,
   decideOwningSide,
-  getOtherAgents
+  getOtherAgents,
+  extractBrandIds
 } from './utils'
 
 interface Props {
@@ -133,12 +134,11 @@ export default function LoftIntegration({
     try {
       // Build brand hierarchy for selection
       const hierarchy: any[] = []
-      const brandIds: string[] = []
+      const brandIds = extractBrandIds(deal)
       let currentBrand = deal.brand
 
       while (currentBrand) {
         hierarchy.push(currentBrand)
-        brandIds.push(currentBrand.id)
         currentBrand = currentBrand.parent
       }
 
@@ -345,12 +345,7 @@ export default function LoftIntegration({
 
   const findOrCreateAgent = async (brokerageId: string, agent: any) => {
     // Build brand IDs array
-    const brandIds: string[] = []
-    let currentBrand = deal.brand
-    while (currentBrand) {
-      brandIds.push(currentBrand.id)
-      currentBrand = currentBrand.parent
-    }
+    const brandIds = extractBrandIds(deal)
     
     const profiles = await api.getProfiles(brokerageId, { email: agent.email }, brandIds)
     if (profiles.error) return null
@@ -473,12 +468,7 @@ export default function LoftIntegration({
 
   const createNewDeal = async (brokerageId: string, dealPayload: any) => {
     // Build brand IDs array
-    const brandIds: string[] = []
-    let currentBrand = deal.brand
-    while (currentBrand) {
-      brandIds.push(currentBrand.id)
-      currentBrand = currentBrand.parent
-    }
+    const brandIds = extractBrandIds(deal)
     
     const newDeal = await api.createDeal(brokerageId, dealPayload, brandIds)
     if (newDeal.error) {
@@ -498,7 +488,9 @@ export default function LoftIntegration({
     dealId: string,
     dealPayload: any
   ) => {
-    const updatedDeal = await api.updateDeal(brokerageId, dealId, dealPayload)
+    const brandIds = extractBrandIds(deal)
+
+    const updatedDeal = await api.updateDeal(brokerageId, dealId, dealPayload, brandIds)
 
     if (updatedDeal.error) {
       showStatus('Deal update failed', 'warning')
@@ -512,6 +504,8 @@ export default function LoftIntegration({
   }
 
   const updateDealAddress = async (loft47Deal: any) => {
+    const brandIds = extractBrandIds(deal)
+
     const addressId = loft47Deal.data.relationships.address.data.id
 
     await api.updateAddress(addressId, {
@@ -523,7 +517,7 @@ export default function LoftIntegration({
           province: getDealContext('state')?.text
         }
       }
-    })
+    }, brandIds)
   }
 
   const syncDealPeople = async (brokerageId: string, dealId: string) => {
@@ -536,6 +530,8 @@ export default function LoftIntegration({
       const profile = await findOrCreateProfile(brokerageId, role)
 
       if (profile) {
+        const brandIds = extractBrandIds(deal)
+
         await api.createDealAccess(brokerageId, dealId, {
           data: {
             attributes: {
@@ -544,19 +540,14 @@ export default function LoftIntegration({
               side: decideOwningSide(deal)
             }
           }
-        })
+        }, brandIds)
       }
     }
   }
 
   const findOrCreateProfile = async (brokerageId: string, role: any) => {
     // Build brand IDs array
-    const brandIds: string[] = []
-    let currentBrand = deal.brand
-    while (currentBrand) {
-      brandIds.push(currentBrand.id)
-      currentBrand = currentBrand.parent
-    }
+    const brandIds = extractBrandIds(deal)
     
     const profiles = await api.getProfiles(brokerageId, { email: role.email }, brandIds)
     if (profiles.error) return null

@@ -26,7 +26,7 @@ function extractBrandIds(req: Request): { brandIds: string[] | null, error: stri
 }
 
 // Helper function to authenticate and handle common error responses
-async function authenticateRequest(req: Request, res: Response): Promise<{ api: any, appUrl?: string, isStaging?: boolean } | null> {
+async function authenticateRequest(req: Request, res: Response): Promise<{ api: any, appUrl?: string, isStaging?: boolean, token?: string, apiUrl?: string } | null> {
   const { brandIds, error } = extractBrandIds(req)
   
   if (error || !brandIds) {
@@ -43,16 +43,19 @@ async function authenticateRequest(req: Request, res: Response): Promise<{ api: 
     
     return authResult
   } catch (err: any) {
+    // Handle specific authentication failure
     if (err.message === 'Authentication failed') {
       res.status(401).json({ error: 'Loft47 authentication failed - please check credentials' })
       return null
     }
-    throw err // Re-throw unexpected errors
+    
+    // For all other errors (network, etc), let them bubble up to be handled by the specific handler
+    throw err
   }
 }
 
 // Middleware to authenticate with Loft47 based on brand hierarchy
-async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, appUrl?: string, isStaging?: boolean } | null> {
+async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, appUrl?: string, isStaging?: boolean, token?: string, apiUrl?: string } | null> {
   if (!brandIds || brandIds.length === 0) return null
   
   // Use the brand hierarchy provided
@@ -91,14 +94,22 @@ async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, a
         if (token) {
           // Return authenticated API instance
           const authenticatedApi = createAuthenticatedApiInstance(apiUrl, token)
-          return { api: authenticatedApi, appUrl, isStaging: credentials.isStaging }
+          return { api: authenticatedApi, appUrl, isStaging: credentials.isStaging, token, apiUrl }
         }
         
-        return { api, appUrl, isStaging: credentials.isStaging }
+        return { api, appUrl, isStaging: credentials.isStaging, apiUrl }
         
       } catch (authError: any) {
         console.error('Loft47 authentication failed:', authError.message)
-        throw new Error('Authentication failed')
+        console.error('Auth error details:', authError.response?.status, authError.response?.data)
+        
+        // If it's a 401 from Loft47, that means bad credentials - throw specific error
+        if (authError.response?.status === 401) {
+          throw new Error('Authentication failed')
+        }
+        
+        // For other errors (network, 500, etc), re-throw the original error
+        throw authError
       }
     }
   }
@@ -118,192 +129,6 @@ export async function getAppConfig(req: Request, res: Response) {
     })
   } catch (err: any) {
     res.status(500).json({ error: 'Server error' })
-  }
-}
-
-// Generic proxy handler for GET requests with automatic authentication
-export function createGetHandler(path: string) {
-  return async (req: Request, res: Response) => {
-    try {
-      // Extract brand IDs from request
-      const brandIdsQuery = req.query.brand_ids as string
-      const brandIds = brandIdsQuery ? brandIdsQuery.split(',') : []
-      
-      if (!brandIds || brandIds.length === 0) {
-        return res.status(400).json({ error: 'Brand IDs required' })
-      }
-      
-      // Authenticate with Loft47
-      const authResult = await authenticateWithLoft47(brandIds)
-      if (!authResult) {
-        return res.status(404).json({ error: 'No Loft47 credentials configured for this account' })
-      }
-      
-      const response = await authResult.api.get(path.replace(/:[^/]+/g, (match) => {
-        const param = match.slice(1)
-        return req.params[param] || match
-      }))
-      
-      res.status(response.status).json(response.data)
-    } catch (err: any) {
-      if (err.message === 'Authentication failed') {
-        return res.status(401).json({ error: 'Loft47 authentication failed - please check credentials' })
-      }
-      
-      // If the Loft47 API returned an error status, pass it through
-      if (err.response?.status) {
-        return res.status(err.response.status).json({ 
-          error: err.response.data?.message || err.response.data || err.message 
-        })
-      }
-      
-      const error = handleAxiosError(err)
-
-      res.status(error.status).json({ error: error.message })
-    }
-  }
-}
-
-// Generic proxy handler for POST requests with automatic authentication
-export function createPostHandler(path: string) {
-  return async (req: Request, res: Response) => {
-    try {
-      const { brand_ids, ...data } = req.body
-      
-      if (!brand_ids || !Array.isArray(brand_ids) || brand_ids.length === 0) {
-        return res.status(400).json({ error: 'Brand IDs array required' })
-      }
-      
-      // Authenticate with Loft47
-      const authResult = await authenticateWithLoft47(brand_ids)
-      if (!authResult) {
-        return res.status(404).json({ error: 'No Loft47 credentials configured for this account' })
-      }
-      
-      const apiPath = path.replace(/:[^/]+/g, (match) => {
-        const param = match.slice(1)
-        return req.params[param] || match
-      })
-      
-      console.log('POST request to:', apiPath)
-      console.log('POST data:', JSON.stringify(data, null, 2))
-      
-      const response = await authResult.api.post(apiPath, data, {
-        headers: { 'Content-Type': 'application/json' }
-      })
-      
-      res.status(response.status).json(response.data)
-    } catch (err: any) {
-      console.log('Error in POST handler:', err.message)
-      console.log('Error response status:', err.response?.status)
-      console.log('Error response data:', err.response?.data)
-      
-      if (err.message === 'Authentication failed') {
-        return res.status(401).json({ error: 'Loft47 authentication failed - please check credentials' })
-      }
-      
-      // If the Loft47 API returned an error status, pass it through
-      if (err.response?.status) {
-        return res.status(err.response.status).json({ 
-          error: err.response.data?.message || err.response.data || err.message 
-        })
-      }
-      
-      const error = handleAxiosError(err)
-
-      res.status(error.status).json({ error: error.message })
-    }
-  }
-}
-
-// Generic proxy handler for PATCH requests
-export function createPatchHandler(path: string) {
-  return async (req: Request, res: Response) => {
-    try {
-      const { brand_ids, ...data } = req.body
-      
-      if (!brand_ids || !Array.isArray(brand_ids) || brand_ids.length === 0) {
-        return res.status(400).json({ error: 'Brand IDs array required' })
-      }
-      
-      // Authenticate with Loft47
-      const authResult = await authenticateWithLoft47(brand_ids)
-      if (!authResult) {
-        return res.status(404).json({ error: 'No Loft47 credentials configured for this account' })
-      }
-      
-      const response = await authResult.api.patch(
-        path.replace(/:[^/]+/g, match => {
-          const param = match.slice(1)
-          return req.params[param] || match
-        }),
-        data,
-        {
-          headers: { 'Content-Type': 'application/json' }
-        }
-      )
-
-      res.status(response.status).json(response.data)
-    } catch (err: any) {
-      if (err.message === 'Authentication failed') {
-        return res.status(401).json({ error: 'Loft47 authentication failed - please check credentials' })
-      }
-      
-      // If the Loft47 API returned an error status, pass it through
-      if (err.response?.status) {
-        return res.status(err.response.status).json({ 
-          error: err.response.data?.message || err.response.data || err.message 
-        })
-      }
-      
-      const error = handleAxiosError(err)
-      res.status(error.status).json({ error: error.message })
-    }
-  }
-}
-
-// Generic proxy handler for DELETE requests
-export function createDeleteHandler(path: string) {
-  return async (req: Request, res: Response) => {
-    try {
-      // Extract brand IDs from query or body
-      const brandIdsQuery = req.query.brand_ids as string
-      const brandIdsBody = req.body?.brand_ids
-      const brandIds = brandIdsQuery ? brandIdsQuery.split(',') : brandIdsBody || []
-      
-      if (!brandIds || brandIds.length === 0) {
-        return res.status(400).json({ error: 'Brand IDs required' })
-      }
-      
-      // Authenticate with Loft47
-      const authResult = await authenticateWithLoft47(brandIds)
-      if (!authResult) {
-        return res.status(404).json({ error: 'No Loft47 credentials configured for this account' })
-      }
-      
-      const response = await authResult.api.delete(
-        path.replace(/:[^/]+/g, match => {
-          const param = match.slice(1)
-          return req.params[param] || match
-        })
-      )
-
-      res.status(response.status).json(response.data)
-    } catch (err: any) {
-      if (err.message === 'Authentication failed') {
-        return res.status(401).json({ error: 'Loft47 authentication failed - please check credentials' })
-      }
-      
-      // If the Loft47 API returned an error status, pass it through
-      if (err.response?.status) {
-        return res.status(err.response.status).json({ 
-          error: err.response.data?.message || err.response.data || err.message 
-        })
-      }
-      
-      const error = handleAxiosError(err)
-      res.status(error.status).json({ error: error.message })
-    }
   }
 }
 
@@ -411,10 +236,11 @@ export async function getProfiles(req: Request, res: Response) {
     if (!authResult) return // Response already sent
     
     // Build query string from other query params (excluding brand_ids)
+    // Convert to Loft47's filter format: filter[key]=value
     const queryParams = new URLSearchParams()
     Object.keys(req.query).forEach(key => {
       if (key !== 'brand_ids' && req.query[key]) {
-        queryParams.append(key, req.query[key] as string)
+        queryParams.append(`filter[${key}]`, req.query[key] as string)
       }
     })
     
@@ -510,22 +336,89 @@ export async function createDeal(req: Request, res: Response) {
     if (!authResult) return // Response already sent
     
     const { brand_ids, ...data } = req.body
-    console.log(data)
 
-    const response = await authResult.api.post(`/brokerages/${brokerage_id}/deals`, ...data, {
+    const response = await authResult.api.post(`/brokerages/${brokerage_id}/deals`, data, {
       headers: { 'Content-Type': 'application/json' }
     })
     
     res.status(response.status).json(response.data)
   } catch (err: any) {
-    if (err.response?.status) {
-      return res.status(err.response.status).json({ 
-        error: err.response.data?.message || err.response.data || err.message 
+    
+    if (err.response) {      
+      // Handle specific Loft47 API errors
+      if (err.response.status === 400) {
+        return res.status(400).json({
+          error: 'Invalid request data',
+          details: err.response.data?.message || err.response.data || 'Bad request to Loft47 API',
+          loft47_error: err.response.data
+        })
+      }
+      
+      if (err.response.status === 401) {
+        return res.status(401).json({
+          error: 'Authentication failed with Loft47',
+          details: 'Invalid or expired Loft47 credentials'
+        })
+      }
+      
+      if (err.response.status === 403) {
+        return res.status(403).json({
+          error: 'Forbidden - insufficient permissions',
+          details: 'Your Loft47 account does not have permission to create deals in this brokerage'
+        })
+      }
+      
+      if (err.response.status === 404) {
+        return res.status(404).json({
+          error: 'Brokerage not found',
+          details: `Brokerage does not exist in Loft47`
+        })
+      }
+      
+      if (err.response.status === 422) {
+        return res.status(422).json({
+          error: 'Validation failed',
+          details: 'The deal data does not meet Loft47 requirements',
+          validation_errors: err.response.data?.errors || err.response.data
+        })
+      }
+      
+      if (err.response.status >= 500) {
+        return res.status(502).json({
+          error: 'Loft47 server error',
+          details: 'Loft47 API is experiencing issues. Please try again later.',
+          loft47_status: err.response.status
+        })
+      }
+      
+      // Generic Loft47 API error
+      return res.status(err.response.status).json({
+        error: 'Loft47 API error',
+        details: err.response.data?.message || err.response.data || err.message,
+        loft47_error: err.response.data
       })
     }
     
-    const error = handleAxiosError(err)
-    res.status(error.status).json({ error: error.message })
+    // Network or other errors
+    if (err.code === 'ECONNREFUSED') {
+      return res.status(503).json({
+        error: 'Cannot connect to Loft47',
+        details: 'Unable to reach Loft47 API. Please check your network connection.'
+      })
+    }
+    
+    if (err.code === 'ETIMEDOUT') {
+      return res.status(504).json({
+        error: 'Request timeout',
+        details: 'Request to Loft47 API timed out. Please try again.'
+      })
+    }
+    
+    // Generic server error
+    res.status(500).json({
+      error: 'Internal server error',
+      details: 'An unexpected error occurred while creating the deal'
+    })
   }
 }
 
