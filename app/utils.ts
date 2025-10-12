@@ -119,3 +119,14 @@ export function decideOwningSide(deal: any) {
 
   return side
 }
+
+export const getOtherAgents = (roles: IDealRole[], deal: IDeal) => {
+  let other_agent_type = ''
+  if (deal.deal_type === 'Buying') {
+    other_agent_type = 'SellerAgent'
+  } else if (deal.deal_type === 'Selling') {
+    other_agent_type = 'BuyerAgent'
+  }
+  const otherAgents = roles.filter(role => role.role === other_agent_type)
+  return otherAgents
+}

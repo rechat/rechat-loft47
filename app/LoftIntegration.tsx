@@ -3,7 +3,6 @@ import React from '@libs/react'
 
 import { api } from './api'
 import {
-  dealTypes,
   dealSubTypes,
   leadSources,
   propertyTypes,
@@ -13,7 +12,8 @@ import {
   formatDate,
   decideRoleType,
   isAgentRole,
-  decideOwningSide
+  decideOwningSide,
+  getOtherAgents
 } from './utils'
 
 interface Props {
@@ -40,7 +40,6 @@ export default function LoftIntegration({
   const [needsCredentials, setNeedsCredentials] = React.useState(false)
 
   // Form state
-  const [dealType, setDealType] = React.useState('')
   const [dealSubType, setDealSubType] = React.useState('')
   const [leadSource, setLeadSource] = React.useState('')
   const [propertyType, setPropertyType] = React.useState('')
@@ -231,7 +230,6 @@ export default function LoftIntegration({
       // 5. Populate form with existing data
       const dealData = existingDeal.data.attributes
 
-      setDealType(dealData.dealType || '')
       setDealSubType(dealData.dealSubType || '')
       setLeadSource(dealData.leadSource || '')
       setPropertyType(dealData.propertyType || '')
@@ -318,12 +316,6 @@ export default function LoftIntegration({
       return false
     }
 
-    if (!dealType) {
-      showStatus('Select deal type', 'warning')
-
-      return false
-    }
-
     if (!dealSubType) {
       showStatus('Select deal sub type', 'warning')
 
@@ -398,7 +390,8 @@ export default function LoftIntegration({
     const blockNumber = getDealContext('block_number')?.text
     const lotNumber = getDealContext('lot_number')?.text
     const mlsNum = getDealContext('mls_number')?.text
-    const isLease = dealType === 'lease'
+    const isLease = deal.property_type?.is_lease || false
+    const dealType = isLease ? 'lease' : 'standard'
     
     console.log('Deal context values:', {
       salesPrice,
@@ -407,6 +400,14 @@ export default function LoftIntegration({
       dealType
     })
     
+    // Calculate outsideBrokerageName
+    const otherAgents = getOtherAgents(roles, deal)
+    const outsideBrokerageName = otherAgents && otherAgents.length > 0 && otherAgents[0].company_title 
+      ? otherAgents[0].company_title 
+      : undefined
+    
+    console.log({isLease, leasedPrice, salesPrice})
+
     const payload: any = {
       data: {
         attributes: {
@@ -426,7 +427,8 @@ export default function LoftIntegration({
           owningSide: decideOwningSide(deal),
           ownerName: agent.attributes?.name || agent.name,
           ...(isLease ? leasedPrice && { sellPrice: leasedPrice } : salesPrice && { sellPrice: salesPrice }),
-          teamDeal: deal.brand.brand_type === 'Team'
+          teamDeal: deal.brand.brand_type === 'Team',
+          ...(outsideBrokerageName && { outsideBrokerageName })
         }
       }
     }
@@ -943,6 +945,38 @@ export default function LoftIntegration({
               📋 Deal Information
             </Ui.Typography>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {/* Deal Type */}
+              <div
+                style={{
+                  padding: 6,
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: 4,
+                  border: '1px solid #e9ecef'
+                }}
+              >
+                <Ui.Typography
+                  variant="caption"
+                  style={{
+                    color: '#666',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    fontSize: '0.7rem'
+                  }}
+                >
+                  Type
+                </Ui.Typography>
+                <Ui.Typography
+                  variant="body2"
+                  style={{
+                    fontWeight: 500,
+                    marginTop: 1,
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  {deal.property_type?.is_lease ? 'Lease' : 'Sale'}
+                </Ui.Typography>
+              </div>
+
               {/* Address */}
               {getDealContext('full_address')?.text && (
                 <div
@@ -1236,51 +1270,24 @@ export default function LoftIntegration({
                 </Ui.Select>
               </Ui.FormControl>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 12
-                }}
-              >
-                <Ui.FormControl fullWidth variant="outlined" size="small">
-                  <Ui.InputLabel>Deal Type</Ui.InputLabel>
-                  <Ui.Select
-                    value={dealType}
-                    onChange={e => setDealType(e.target.value as string)}
-                    disabled={isFormLocked}
-                    style={{
-                      backgroundColor: isFormLocked ? '#f5f5f5' : 'white',
-                      opacity: isFormLocked ? 0.7 : 1
-                    }}
-                  >
-                    {dealTypes.map(opt => (
-                      <Ui.MenuItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </Ui.MenuItem>
-                    ))}
-                  </Ui.Select>
-                </Ui.FormControl>
-
-                <Ui.FormControl fullWidth variant="outlined" size="small">
-                  <Ui.InputLabel>Property Type</Ui.InputLabel>
-                  <Ui.Select
-                    value={propertyType}
-                    onChange={e => setPropertyType(e.target.value as string)}
-                    disabled={isFormLocked}
-                    style={{
-                      backgroundColor: isFormLocked ? '#f5f5f5' : 'white',
-                      opacity: isFormLocked ? 0.7 : 1
-                    }}
-                  >
-                    {propertyTypes.map(opt => (
-                      <Ui.MenuItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </Ui.MenuItem>
-                    ))}
-                  </Ui.Select>
-                </Ui.FormControl>
-              </div>
+              <Ui.FormControl fullWidth variant="outlined" size="small">
+                <Ui.InputLabel>Property Type</Ui.InputLabel>
+                <Ui.Select
+                  value={propertyType}
+                  onChange={e => setPropertyType(e.target.value as string)}
+                  disabled={isFormLocked}
+                  style={{
+                    backgroundColor: isFormLocked ? '#f5f5f5' : 'white',
+                    opacity: isFormLocked ? 0.7 : 1
+                  }}
+                >
+                  {propertyTypes.map(opt => (
+                    <Ui.MenuItem key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </Ui.MenuItem>
+                  ))}
+                </Ui.Select>
+              </Ui.FormControl>
 
               <Ui.FormControl fullWidth variant="outlined" size="small">
                 <Ui.InputLabel>Deal Sub Type</Ui.InputLabel>
