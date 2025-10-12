@@ -28,8 +28,10 @@ interface Props {
 
 export default function LoftIntegration({ models: { deal, roles }, api: { getDealContext } }: Props) {
   const [isLoading, setIsLoading] = React.useState(false)
+  const [isInitializing, setIsInitializing] = React.useState(true)
   const [status, setStatus] = React.useState<string | null>(null)
   const [statusType, setStatusType] = React.useState<'normal' | 'warning'>('normal')
+  const [isExistingDeal, setIsExistingDeal] = React.useState(false)
   
   // Form state
   const [dealType, setDealType] = React.useState('')
@@ -50,23 +52,28 @@ export default function LoftIntegration({ models: { deal, roles }, api: { getDea
     setTimeout(() => setStatus(null), 3000)
   }
 
-  const syncToDeal = async () => {
-    if (!validateForm()) return
-    
-    setIsLoading(true)
+  // Check for existing deal on component mount
+  React.useEffect(() => {
+    initializeComponent()
+  }, [deal.id])
+
+  const initializeComponent = async () => {
+    setIsInitializing(true)
+    showStatus('Checking for existing sync...')
 
     try {
-      // 1. Sign in
-      showStatus('Signing in...')
+      // 1. Get config and sign in
       const config = await api.getConfig()
       if (config.error) {
-        showStatus('Config not available', 'warning')
+        showStatus('Ready to sync - no existing data found')
+        setIsInitializing(false)
         return
       }
 
       const auth = await api.signIn(config.LOFT47_EMAIL, config.LOFT47_PASSWORD)
       if (auth.error) {
-        showStatus('Sign in failed', 'warning')
+        showStatus('Ready to sync - could not authenticate')
+        setIsInitializing(false)
         return
       }
 
@@ -75,37 +82,102 @@ export default function LoftIntegration({ models: { deal, roles }, api: { getDea
       // 2. Get brokerages
       const brokData = await api.getBrokerages()
       if (brokData.error || !brokData.data?.length) {
-        showStatus('No brokerages found', 'warning')
+        showStatus('Ready to sync - no brokerages found')
+        setIsInitializing(false)
         return
       }
 
       setBrokerages(brokData.data)
       const brokerage = brokData.data[0]
 
-      // 3. Setup primary agent
+      // 3. Check if deal has been synced before
+      const mapping = await api.getMapping(deal.id)
+      
+      if (mapping.notFound || mapping.error) {
+        showStatus('Ready to sync - new deal')
+        setIsInitializing(false)
+        return
+      }
+
+      // 4. Verify we have a valid Loft47 deal ID
+      if (!mapping.loft47_deal_id) {
+        showStatus('Deal mapping found but Loft47 ID is missing. Try re-syncing.', 'warning')
+        setIsInitializing(false)
+        return
+      }
+
+      // 5. Deal exists - fetch the existing deal data
+      setIsExistingDeal(true)
+      setLoft47DealId(mapping.loft47_deal_id)
+      
+      const existingDeal = await api.getDeal(brokerage.id, mapping.loft47_deal_id)
+      
+      if (existingDeal.error) {
+        showStatus('Deal was synced before but could not fetch current data', 'warning')
+        setIsInitializing(false)
+        return
+      }
+
+      // 5. Populate form with existing data
+      const dealData = existingDeal.data.attributes
+      
+      setDealType(dealData.dealType || '')
+      setDealSubType(dealData.dealSubType || '')
+      setLeadSource(dealData.leadSource || '')
+      setPropertyType(dealData.propertyType || '')
+      setSaleStatus(dealData.saleStatus || '')
+
+      showStatus('Loaded existing deal data')
+
+    } catch (error) {
+      console.error('Initialization error:', error)
+      showStatus('Ready to sync - initialization failed', 'warning')
+    } finally {
+      setIsInitializing(false)
+    }
+  }
+
+  const syncToDeal = async () => {
+    if (!validateForm()) return
+    
+    setIsLoading(true)
+
+    try {
+      // Use brokerages from initialization
+      if (brokerages.length === 0) {
+        showStatus('No brokerages available', 'warning')
+        return
+      }
+
+      const brokerage = brokerages[0]
+
+      // Setup primary agent
       const mainAgent = getMainAgent(roles, deal)
       if (!mainAgent) {
         showStatus('No main agent found', 'warning')
         return
       }
 
-      let agent = await findOrCreateAgent(brokerage.id, mainAgent)
+      let agent = primaryAgent
       if (!agent) {
-        showStatus('Could not create agent', 'warning')
-        return
+        agent = await findOrCreateAgent(brokerage.id, mainAgent)
+        if (!agent) {
+          showStatus('Could not create agent', 'warning')
+          return
+        }
+        setPrimaryAgent(agent)
       }
-      setPrimaryAgent(agent)
 
-      // 4. Create/update deal
+      // Create/update deal
       const dealPayload = buildDealPayload(agent)
-      const mapping = await api.getMapping(deal.id)
 
-      if (mapping.notFound) {
-        showStatus('Creating deal...')
-        await createNewDeal(brokerage.id, dealPayload)
+      if (isExistingDeal) {
+        showStatus('Updating existing deal...')
+        await updateExistingDeal(brokerage.id, loft47DealId, dealPayload)
       } else {
-        showStatus('Updating deal...')
-        await updateExistingDeal(brokerage.id, mapping.loft47DealId, dealPayload)
+        showStatus('Creating new deal...')
+        await createNewDeal(brokerage.id, dealPayload)
+        setIsExistingDeal(true)
       }
 
       showStatus('Sync completed!')
@@ -149,7 +221,14 @@ export default function LoftIntegration({ models: { deal, roles }, api: { getDea
 
   const buildDealPayload = (agent: any) => {
     const closingDate = getDealContext('closing_date')?.date
-    return {
+    const possessionDate = getDealContext('possession_date')?.date
+    
+    // Helper function to check if a date is valid (not null, 0, or empty)
+    const isValidDate = (timestamp: any) => {
+      return timestamp && timestamp > 0
+    }
+    
+    const payload: any = {
       data: {
         attributes: {
           ownerId: Number(agent.id),
@@ -164,14 +243,37 @@ export default function LoftIntegration({ models: { deal, roles }, api: { getDea
           owningSide: decideOwningSide(deal),
           ownerName: agent.attributes.name,
           sellPrice: getDealContext('sales_price')?.text,
-          teamDeal: deal.brand.brand_type === 'Team',
-          ...(closingDate && { 
-            closedAt: formatDate(closingDate),
-            soldAt: formatDate(closingDate)
-          })
+          teamDeal: deal.brand.brand_type === 'Team'
         }
       }
     }
+    
+    // Only add dates if they are valid
+    if (isValidDate(closingDate)) {
+      const formattedClosingDate = formatDate(closingDate)
+      if (formattedClosingDate) {
+        payload.data.attributes.closedAt = formattedClosingDate
+        payload.data.attributes.soldAt = formattedClosingDate
+      }
+    }
+    
+    if (isValidDate(possessionDate)) {
+      const formattedPossessionDate = formatDate(possessionDate)
+      if (formattedPossessionDate) {
+        payload.data.attributes.possessionAt = formattedPossessionDate
+      }
+    }
+    
+    // Add other optional fields only if they have valid values
+    const block = getDealContext('block_number')?.text
+    const lot = getDealContext('lot_number')?.text
+    const mlsNumber = getDealContext('mls_number')?.text
+    
+    if (block) payload.data.attributes.block = block
+    if (lot) payload.data.attributes.lot = lot
+    if (mlsNumber) payload.data.attributes.mlsNumber = mlsNumber
+    
+    return payload
   }
 
   const createNewDeal = async (brokerageId: string, dealPayload: any) => {
@@ -257,128 +359,298 @@ export default function LoftIntegration({ models: { deal, roles }, api: { getDea
 
   const openDeal = () => {
     if (loft47Url && brokerages.length && loft47DealId) {
-      window.open(`${loft47Url}/brokerages/${brokerages[0].id}/deals/${loft47DealId}`, '_blank')
+      const baseUrl = loft47Url.endsWith('/') ? loft47Url.slice(0, -1) : loft47Url
+      window.open(`${baseUrl}/brokerages/${brokerages[0].id}/deals/${loft47DealId}`, '_blank')
     } else {
       showStatus('Deal not synced yet', 'warning')
     }
   }
 
   return (
-    <Ui.Grid container spacing={2}>
-      {isLoading && (
-        <Ui.CircularProgress
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%'
-          }}
-        />
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: 12, backgroundColor: '#fafafa', minHeight: 'auto' }}>
+      {(isLoading || isInitializing) && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <Ui.Paper style={{ padding: 32, borderRadius: 12, textAlign: 'center' }}>
+            <Ui.CircularProgress style={{ marginBottom: 16 }} size={48} />
+            <Ui.Typography variant="h6">
+              {isInitializing ? 'Loading deal data...' : 'Syncing with Loft47...'}
+            </Ui.Typography>
+          </Ui.Paper>
+        </div>
       )}
       
-      {status && (
+
+      <Ui.Grid container spacing={2}>
+        {/* Deal Status & Actions Bar */}
         <Ui.Grid item xs={12}>
           <Ui.Paper 
+            elevation={2}
             style={{ 
-              padding: 8, 
-              background: statusType === 'normal' ? '#e3f2fd' : '#ff9800' 
+              padding: 12, 
+              borderRadius: 6,
+              background: isExistingDeal ? '#e8f5e8' : '#f5f5f5',
+              border: `2px solid ${isExistingDeal ? '#4caf50' : '#bdbdbd'}`
             }}
           >
-            <Ui.Typography variant="body2">{status}</Ui.Typography>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              {/* Status */}
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  backgroundColor: isExistingDeal ? '#4caf50' : '#bdbdbd',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 8,
+                  color: 'white',
+                  fontSize: 14,
+                  fontWeight: 'bold'
+                }}>
+                  {isExistingDeal ? '✓' : '◯'}
+                </div>
+                <div>
+                  <Ui.Typography variant="body1" style={{ fontWeight: 'bold', color: '#333', marginBottom: 1 }}>
+                    {isExistingDeal ? 'Previously Synced' : 'New Deal'}
+                  </Ui.Typography>
+                  {status && (
+                    <Ui.Typography variant="body2" style={{ 
+                      color: statusType === 'normal' ? '#1976d2' : '#f57c00',
+                      fontWeight: 500
+                    }}>
+                      {status}
+                    </Ui.Typography>
+                  )}
+                </div>
+              </div>
+              
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Ui.Button 
+                  variant="contained" 
+                  color="primary" 
+                  onClick={syncToDeal}
+                  disabled={isLoading || isInitializing}
+                  style={{ 
+                    minWidth: 100,
+                    borderRadius: 16,
+                    fontWeight: 'bold',
+                    textTransform: 'none',
+                    padding: '6px 16px'
+                  }}
+                >
+                  {isExistingDeal ? '🔄 Update' : '🚀 Create'}
+                </Ui.Button>
+                <Ui.Button 
+                  variant="outlined"
+                  color="primary"
+                  onClick={openDeal}
+                  disabled={!loft47DealId}
+                  style={{ 
+                    minWidth: 80,
+                    borderRadius: 16,
+                    fontWeight: 'bold',
+                    textTransform: 'none',
+                    padding: '6px 16px'
+                  }}
+                >
+                  🔗 Open
+                </Ui.Button>
+              </div>
+            </div>
           </Ui.Paper>
         </Ui.Grid>
-      )}
+        
 
-      {/* Deal Context Display */}
-      <Ui.Grid item xs={12}>
-        <Ui.Typography variant="h6">Deal Information</Ui.Typography>
-        {dealContexts.map(context => {
-          const value = getDealContext(context.id)?.[context.type]
-          return value ? (
-            <Ui.Typography key={context.id} variant="body2">
-              {context.label}: {context.id.includes('price') ? 
-                new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value)) : 
-                value
-              }
+        {/* Deal Information Card */}
+        <Ui.Grid item xs={12} md={6}>
+          <Ui.Paper elevation={1} style={{ padding: 12, borderRadius: 8, height: 'fit-content' }}>
+            <Ui.Typography variant="subtitle1" style={{ fontWeight: 'bold', marginBottom: 8, color: '#1976d2' }}>
+              📋 Deal Information
             </Ui.Typography>
-          ) : null
-        })}
-      </Ui.Grid>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {/* Address */}
+              {getDealContext('full_address')?.text && (
+                <div style={{ padding: 6, backgroundColor: '#f8f9fa', borderRadius: 4, border: '1px solid #e9ecef' }}>
+                  <Ui.Typography variant="caption" style={{ color: '#666', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                    Address
+                  </Ui.Typography>
+                  <Ui.Typography variant="body2" style={{ fontWeight: 500, marginTop: 1, fontSize: '0.8rem' }}>
+                    {getDealContext('full_address')?.text}
+                  </Ui.Typography>
+                </div>
+              )}
+              
+              {/* City - full width */}
+              {getDealContext('city')?.text && (
+                <div style={{ padding: 6, backgroundColor: '#f8f9fa', borderRadius: 4, border: '1px solid #e9ecef' }}>
+                  <Ui.Typography variant="caption" style={{ color: '#666', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                    City
+                  </Ui.Typography>
+                  <Ui.Typography variant="body2" style={{ fontWeight: 500, marginTop: 1, fontSize: '0.8rem' }}>
+                    {getDealContext('city')?.text}
+                  </Ui.Typography>
+                </div>
+              )}
+              
+              {/* State and Postal Code - side by side */}
+              {(getDealContext('state')?.text || getDealContext('postal_code')?.text) && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  {getDealContext('state')?.text && (
+                    <div style={{ padding: 6, backgroundColor: '#f8f9fa', borderRadius: 4, border: '1px solid #e9ecef' }}>
+                      <Ui.Typography variant="caption" style={{ color: '#666', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                        State
+                      </Ui.Typography>
+                      <Ui.Typography variant="body2" style={{ fontWeight: 500, marginTop: 1, fontSize: '0.8rem' }}>
+                        {getDealContext('state')?.text}
+                      </Ui.Typography>
+                    </div>
+                  )}
+                  {getDealContext('postal_code')?.text && (
+                    <div style={{ padding: 6, backgroundColor: '#f8f9fa', borderRadius: 4, border: '1px solid #e9ecef' }}>
+                      <Ui.Typography variant="caption" style={{ color: '#666', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                        Postal Code
+                      </Ui.Typography>
+                      <Ui.Typography variant="body2" style={{ fontWeight: 500, marginTop: 1, fontSize: '0.8rem' }}>
+                        {getDealContext('postal_code')?.text}
+                      </Ui.Typography>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Sales Price */}
+              {getDealContext('sales_price')?.text && (
+                <div style={{ padding: 6, backgroundColor: '#f8f9fa', borderRadius: 4, border: '1px solid #e9ecef' }}>
+                  <Ui.Typography variant="caption" style={{ color: '#666', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                    Sales Price
+                  </Ui.Typography>
+                  <Ui.Typography variant="body2" style={{ fontWeight: 500, marginTop: 1, fontSize: '0.8rem' }}>
+                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(getDealContext('sales_price')?.text))}
+                  </Ui.Typography>
+                </div>
+              )}
+              
+              {/* Closing Date */}
+              {getDealContext('closing_date')?.date && getDealContext('closing_date')?.date > 0 && (
+                <div style={{ padding: 6, backgroundColor: '#f8f9fa', borderRadius: 4, border: '1px solid #e9ecef' }}>
+                  <Ui.Typography variant="caption" style={{ color: '#666', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                    Closing Date
+                  </Ui.Typography>
+                  <Ui.Typography variant="body2" style={{ fontWeight: 500, marginTop: 1, fontSize: '0.8rem' }}>
+                    {new Date(getDealContext('closing_date')?.date * 1000).toLocaleDateString()}
+                  </Ui.Typography>
+                </div>
+              )}
+              
+              {/* Possession Date */}
+              {getDealContext('possession_date')?.date && getDealContext('possession_date')?.date > 0 && (
+                <div style={{ padding: 6, backgroundColor: '#f8f9fa', borderRadius: 4, border: '1px solid #e9ecef' }}>
+                  <Ui.Typography variant="caption" style={{ color: '#666', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                    Possession Date
+                  </Ui.Typography>
+                  <Ui.Typography variant="body2" style={{ fontWeight: 500, marginTop: 1, fontSize: '0.8rem' }}>
+                    {new Date(getDealContext('possession_date')?.date * 1000).toLocaleDateString()}
+                  </Ui.Typography>
+                </div>
+              )}
+            </div>
+          </Ui.Paper>
+        </Ui.Grid>
 
-      {/* Form Fields */}
-      <Ui.Grid item xs={12} md={6}>
-        <Ui.FormControl fullWidth>
-          <Ui.InputLabel>Deal Type</Ui.InputLabel>
-          <Ui.Select value={dealType} onChange={(e) => setDealType(e.target.value as string)}>
-            {dealTypes.map(opt => (
-              <Ui.MenuItem key={opt.id} value={opt.id}>{opt.label}</Ui.MenuItem>
-            ))}
-          </Ui.Select>
-        </Ui.FormControl>
-      </Ui.Grid>
+        {/* Form Fields Card */}
+        <Ui.Grid item xs={12} md={6}>
+          <Ui.Paper elevation={1} style={{ padding: 12, borderRadius: 8 }}>
+            <Ui.Typography variant="subtitle1" style={{ fontWeight: 'bold', marginBottom: 8, color: '#1976d2' }}>
+              ⚙️ Sync Configuration
+            </Ui.Typography>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Ui.FormControl fullWidth variant="outlined" size="small">
+                  <Ui.InputLabel>Deal Type</Ui.InputLabel>
+                  <Ui.Select 
+                    value={dealType} 
+                    onChange={(e) => setDealType(e.target.value as string)}
+                    style={{ backgroundColor: 'white' }}
+                  >
+                    {dealTypes.map(opt => (
+                      <Ui.MenuItem key={opt.id} value={opt.id}>{opt.label}</Ui.MenuItem>
+                    ))}
+                  </Ui.Select>
+                </Ui.FormControl>
 
-      <Ui.Grid item xs={12} md={6}>
-        <Ui.FormControl fullWidth>
-          <Ui.InputLabel>Deal Sub Type</Ui.InputLabel>
-          <Ui.Select value={dealSubType} onChange={(e) => setDealSubType(e.target.value as string)}>
-            {dealSubTypes.map(opt => (
-              <Ui.MenuItem key={opt.id} value={opt.id}>{opt.label}</Ui.MenuItem>
-            ))}
-          </Ui.Select>
-        </Ui.FormControl>
-      </Ui.Grid>
+                <Ui.FormControl fullWidth variant="outlined" size="small">
+                  <Ui.InputLabel>Property Type</Ui.InputLabel>
+                  <Ui.Select 
+                    value={propertyType} 
+                    onChange={(e) => setPropertyType(e.target.value as string)}
+                    style={{ backgroundColor: 'white' }}
+                  >
+                    {propertyTypes.map(opt => (
+                      <Ui.MenuItem key={opt.id} value={opt.id}>{opt.label}</Ui.MenuItem>
+                    ))}
+                  </Ui.Select>
+                </Ui.FormControl>
+              </div>
 
-      <Ui.Grid item xs={12} md={6}>
-        <Ui.FormControl fullWidth>
-          <Ui.InputLabel>Lead Source</Ui.InputLabel>
-          <Ui.Select value={leadSource} onChange={(e) => setLeadSource(e.target.value as string)}>
-            {leadSources.map(opt => (
-              <Ui.MenuItem key={opt.id} value={opt.id}>{opt.label}</Ui.MenuItem>
-            ))}
-          </Ui.Select>
-        </Ui.FormControl>
-      </Ui.Grid>
+              <Ui.FormControl fullWidth variant="outlined">
+                <Ui.InputLabel>Deal Sub Type</Ui.InputLabel>
+                <Ui.Select 
+                  value={dealSubType} 
+                  onChange={(e) => setDealSubType(e.target.value as string)}
+                  style={{ backgroundColor: 'white' }}
+                >
+                  {dealSubTypes.map(opt => (
+                    <Ui.MenuItem key={opt.id} value={opt.id}>{opt.label}</Ui.MenuItem>
+                  ))}
+                </Ui.Select>
+              </Ui.FormControl>
 
-      <Ui.Grid item xs={12} md={6}>
-        <Ui.FormControl fullWidth>
-          <Ui.InputLabel>Property Type</Ui.InputLabel>
-          <Ui.Select value={propertyType} onChange={(e) => setPropertyType(e.target.value as string)}>
-            {propertyTypes.map(opt => (
-              <Ui.MenuItem key={opt.id} value={opt.id}>{opt.label}</Ui.MenuItem>
-            ))}
-          </Ui.Select>
-        </Ui.FormControl>
-      </Ui.Grid>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Ui.FormControl fullWidth variant="outlined" size="small">
+                  <Ui.InputLabel>Lead Source</Ui.InputLabel>
+                  <Ui.Select 
+                    value={leadSource} 
+                    onChange={(e) => setLeadSource(e.target.value as string)}
+                    style={{ backgroundColor: 'white' }}
+                  >
+                    {leadSources.map(opt => (
+                      <Ui.MenuItem key={opt.id} value={opt.id}>{opt.label}</Ui.MenuItem>
+                    ))}
+                  </Ui.Select>
+                </Ui.FormControl>
 
-      <Ui.Grid item xs={12} md={6}>
-        <Ui.FormControl fullWidth>
-          <Ui.InputLabel>Sale Status</Ui.InputLabel>
-          <Ui.Select value={saleStatus} onChange={(e) => setSaleStatus(e.target.value as string)}>
-            {saleStatuses.map(opt => (
-              <Ui.MenuItem key={opt.id} value={opt.id}>{opt.label}</Ui.MenuItem>
-            ))}
-          </Ui.Select>
-        </Ui.FormControl>
-      </Ui.Grid>
+                <Ui.FormControl fullWidth variant="outlined" size="small">
+                  <Ui.InputLabel>Sale Status</Ui.InputLabel>
+                  <Ui.Select 
+                    value={saleStatus} 
+                    onChange={(e) => setSaleStatus(e.target.value as string)}
+                    style={{ backgroundColor: 'white' }}
+                  >
+                    {saleStatuses.map(opt => (
+                      <Ui.MenuItem key={opt.id} value={opt.id}>{opt.label}</Ui.MenuItem>
+                    ))}
+                  </Ui.Select>
+                </Ui.FormControl>
+              </div>
+            </div>
+          </Ui.Paper>
+        </Ui.Grid>
 
-      {/* Actions */}
-      <Ui.Grid item xs={12}>
-        <Ui.Button 
-          variant="contained" 
-          color="primary" 
-          onClick={syncToDeal}
-          disabled={isLoading}
-          style={{ marginRight: 8 }}
-        >
-          Sync to Loft47
-        </Ui.Button>
-        <Ui.Button 
-          variant="outlined"
-          onClick={openDeal}
-          disabled={!loft47DealId}
-        >
-          Open in Loft47
-        </Ui.Button>
       </Ui.Grid>
-    </Ui.Grid>
+    </div>
   )
 }

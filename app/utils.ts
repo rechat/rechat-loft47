@@ -2,7 +2,7 @@
 
 // Form options
 export const dealTypes = [
-  { id: 'sale', label: 'Sale' },
+  { id: 'standard', label: 'Standard' },
   { id: 'lease', label: 'Lease' }
 ]
 
@@ -16,6 +16,7 @@ export const dealSubTypes = [
 ]
 
 export const leadSources = [
+  { id: 'agent', label: 'Agent' },
   { id: 'referral', label: 'Referral' },
   { id: 'website', label: 'Website' },
   { id: 'advertising', label: 'Advertising' },
@@ -28,6 +29,7 @@ export const propertyTypes = [
 ]
 
 export const saleStatuses = [
+  { id: 'firm', label: 'Firm' },
   { id: 'active', label: 'Active' },
   { id: 'pending', label: 'Pending' },
   { id: 'closed', label: 'Closed' }
@@ -40,7 +42,8 @@ export const dealContexts = [
   { id: 'state', label: 'State', type: 'text' },
   { id: 'postal_code', label: 'Postal Code', type: 'text' },
   { id: 'sales_price', label: 'Sales Price', type: 'text' },
-  { id: 'closing_date', label: 'Closing Date', type: 'date' }
+  { id: 'closing_date', label: 'Closing Date', type: 'date' },
+  { id: 'possession_date', label: 'Possession Date', type: 'date' }
 ]
 
 // Helper functions
@@ -50,7 +53,18 @@ export function getMainAgent(roles: any[], deal: any) {
 }
 
 export function formatDate(timestamp: number) {
+  // Don't format invalid timestamps (0, null, undefined, etc.)
+  if (!timestamp || timestamp <= 0) {
+    return null
+  }
+  
   const date = new Date(timestamp * 1000)
+  
+  // Check if the resulting date is valid
+  if (isNaN(date.getTime())) {
+    return null
+  }
+  
   const tzOffset = -date.getTimezoneOffset()
   const sign = tzOffset >= 0 ? '+' : '-'
   const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0')

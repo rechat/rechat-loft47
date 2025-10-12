@@ -80,6 +80,14 @@ export const api = {
     }
   },
 
+  async getDeal(brokerageId: string, dealId: string) {
+    try {
+      return await apiFetch(`/loft47/brokerages/${brokerageId}/deals/${dealId}`, { method: 'GET' })
+    } catch (err: any) {
+      return { error: err.body?.error, status: err.status }
+    }
+  },
+
   async updateDeal(brokerageId: string, dealId: string, deal: any) {
     try {
       return await apiFetch(`/loft47/brokerages/${brokerageId}/deals/${dealId}`, {

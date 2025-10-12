@@ -104,6 +104,7 @@ export function createDeleteHandler(path: string) {
 export async function getMapping(req: Request, res: Response) {
   try {
     const { deal_id } = req.params
+    
     const [row] = await db
       .select()
       .from(rechatLoft47DealsMapping)
@@ -113,7 +114,12 @@ export async function getMapping(req: Request, res: Response) {
       return res.status(404).json({ error: 'Mapping not found' })
     }
     
-    res.json({ loft47DealId: row.loft47DealId, rechatDealId: row.rechatDealId })
+    // Check if loft47DealId is null/undefined
+    if (!row.loft47DealId) {
+      return res.status(404).json({ error: 'Mapping found but no Loft47 deal ID' })
+    }
+    
+    res.json({ loft47_deal_id: row.loft47DealId, rechat_deal_id: row.rechatDealId })
   } catch (error) {
     console.error('Error getting mapping:', error)
     res.status(500).json({ error: 'Database error' })

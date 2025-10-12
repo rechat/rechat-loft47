@@ -32,6 +32,7 @@ router.patch('/loft47/brokerages/:brokerage_id/profiles/:profile_id', createPatc
 
 router.get('/loft47/brokerages/:brokerage_id/deals', createGetHandler('/brokerages/:brokerage_id/deals'))
 router.post('/loft47/brokerages/:brokerage_id/deals', createPostHandler('/brokerages/:brokerage_id/deals'))
+router.get('/loft47/brokerages/:brokerage_id/deals/:deal_id', createGetHandler('/brokerages/:brokerage_id/deals/:deal_id'))
 router.patch('/loft47/brokerages/:brokerage_id/deals/:deal_id', createPatchHandler('/brokerages/:brokerage_id/deals/:deal_id'))
 
 router.get('/loft47/brokerages/:brokerage_id/deals/:deal_id/accesses', createGetHandler('/brokerages/:brokerage_id/deals/:deal_id/accesses'))
