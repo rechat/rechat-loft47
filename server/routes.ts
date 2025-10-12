@@ -12,7 +12,8 @@ import {
   getMapping,
   createMapping,
   home,
-  manifest
+  manifest,
+  bundle
 } from './handlers'
 
 const router = express.Router()
@@ -20,6 +21,7 @@ const router = express.Router()
 // Basic routes
 router.get('/', home)
 router.get('/manifest.json', manifest)
+router.get('/:filename(bundle\\.\\d+\\.js)', bundle)
 // Brand credentials
 router.post('/loft47/brand_credentials/lookup', getBrandCredentials)
 router.post('/loft47/brand_credentials', createBrandCredentials)
