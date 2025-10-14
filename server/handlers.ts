@@ -229,6 +229,26 @@ export async function createBrokerage(req: Request, res: Response) {
   }
 }
 
+export async function getOffices(req: Request, res: Response) {
+  try {
+    const { brokerage_id } = req.params
+    const authResult = await authenticateRequest(req, res)
+    if (!authResult) return // Response already sent
+    
+    const response = await authResult.api.get(`/brokerages/${brokerage_id}/offices`)
+    res.status(response.status).json(response.data)
+  } catch (err: any) {
+    if (err.response?.status) {
+      return res.status(err.response.status).json({ 
+        error: err.response.data?.message || err.response.data || err.message 
+      })
+    }
+    
+    const error = handleAxiosError(err)
+    res.status(error.status).json({ error: error.message })
+  }
+}
+
 export async function getProfiles(req: Request, res: Response) {
   try {
     const { brokerage_id } = req.params

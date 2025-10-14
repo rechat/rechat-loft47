@@ -59,6 +59,16 @@ export const api = {
     }
   },
 
+  // Offices
+  async getOffices(brokerageId: string, brandIds: string[]) {
+    try {
+      const params = new URLSearchParams({ brand_ids: brandIds.join(',') })
+      return await apiFetch(`/loft47/brokerages/${brokerageId}/offices?${params}`, { method: 'GET' })
+    } catch (err: any) {
+      return { error: err.body?.error, status: err.status }
+    }
+  },
+
   // Profiles
   async getProfiles(brokerageId: string, filters: Record<string, string>, brandIds: string[]) {
     try {

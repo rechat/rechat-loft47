@@ -9,6 +9,7 @@ import {
   home,
   getBrokerages,
   createBrokerage,
+  getOffices,
   getProfiles,
   createProfile,
   updateProfile,
@@ -38,6 +39,8 @@ router.get('/loft47/brand_credentials/:brand_id', getBrandCredentialsByBrandId)
 // Loft47 API specific endpoints
 router.get('/loft47/brokerages', getBrokerages)
 router.post('/loft47/brokerages', createBrokerage)
+
+router.get('/loft47/brokerages/:brokerage_id/offices', getOffices)
 
 router.get('/loft47/brokerages/:brokerage_id/profiles', getProfiles)
 router.post('/loft47/brokerages/:brokerage_id/profiles', createProfile)

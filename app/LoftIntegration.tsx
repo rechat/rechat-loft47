@@ -56,6 +56,8 @@ export default function LoftIntegration({
 
   // Internal state
   const [brokerages, setBrokerages] = React.useState<any[]>([])
+  const [offices, setOffices] = React.useState<any[]>([])
+  const [selectedOfficeId, setSelectedOfficeId] = React.useState('')
   const [loft47Url, setLoft47Url] = React.useState('')
   const [loft47DealId, setLoft47DealId] = React.useState('')
   const [primaryAgent, setPrimaryAgent] = React.useState<any>(null)
@@ -184,6 +186,7 @@ export default function LoftIntegration({
       // Auto-select first brokerage if only one available
       if (brokData.data.length === 1) {
         setSelectedBrokerageId(brokData.data[0].id)
+        await loadOffices(brokData.data[0].id)
       }
 
       const brokerage = brokData.data[0]
@@ -214,6 +217,7 @@ export default function LoftIntegration({
       setLoft47DealId(mapping.loft47_deal_id)
       // Set the brokerage for existing deals
       setSelectedBrokerageId(brokerage.id)
+      await loadOffices(brokerage.id)
       
       const existingDeal = await api.getDeal(brokerage.id, mapping.loft47_deal_id, brandIds)
       
@@ -234,6 +238,11 @@ export default function LoftIntegration({
       setLeadSource(dealData.leadSource || '')
       setPropertyType(dealData.propertyType || '')
       setSaleStatus(dealData.saleStatus || '')
+      
+      // Set office selection from existing deal
+      if (dealData.officeId) {
+        setSelectedOfficeId(String(dealData.officeId))
+      }
     } catch (error) {
       console.error('Initialization error:', error)
       showStatus('Ready to sync - initialization failed', 'warning')
@@ -316,6 +325,12 @@ export default function LoftIntegration({
       return false
     }
 
+    if (!selectedOfficeId) {
+      showStatus('Select office', 'warning')
+
+      return false
+    }
+
     if (!dealSubType) {
       showStatus('Select deal sub type', 'warning')
 
@@ -341,6 +356,37 @@ export default function LoftIntegration({
     }
 
     return true
+  }
+
+  const loadOffices = async (brokerageId: string) => {
+    if (!brokerageId) {
+      setOffices([])
+      setSelectedOfficeId('')
+      return
+    }
+
+    try {
+      const brandIds = extractBrandIds(deal)
+      const officesData = await api.getOffices(brokerageId, brandIds)
+      
+      if (officesData.error) {
+        console.error('Error loading offices:', officesData.error)
+        showStatus('Failed to load offices', 'warning')
+        return
+      }
+
+      setOffices(officesData.data || [])
+      
+      // Auto-select first office if only one available
+      if (officesData.data?.length === 1) {
+        setSelectedOfficeId(officesData.data[0].id)
+      } else {
+        setSelectedOfficeId('')
+      }
+    } catch (error) {
+      console.error('Error loading offices:', error)
+      showStatus('Failed to load offices', 'warning')
+    }
   }
 
   const findOrCreateAgent = async (brokerageId: string, agent: any) => {
@@ -401,12 +447,27 @@ export default function LoftIntegration({
       ? otherAgents[0].company_title 
       : undefined
     
-    console.log({isLease, leasedPrice, salesPrice})
+    // Calculate buyer and seller names from roles
+    const buyerRoles = roles.filter(role => ['Buyer', 'Tenant'].includes(role.role))
+    const sellerRoles = roles.filter(role => ['Seller', 'Landlord'].includes(role.role))
+    
+    const buyerNames = buyerRoles
+      .map(role => role.display_name)
+      .filter(Boolean)
+      .join(', ')
+    
+    const sellerNames = sellerRoles
+      .map(role => role.display_name) 
+      .filter(Boolean)
+      .join(', ')
+    
+    console.log({isLease, leasedPrice, salesPrice, buyerNames, sellerNames})
 
     const payload: any = {
       data: {
         attributes: {
           ownerId: Number(agent.id || agent.attributes?.id),
+          ...(selectedOfficeId && { officeId: Number(selectedOfficeId) }),
           ...(blockNumber && { block: blockNumber }),
           adjustmentAt: new Date().toISOString(),
           dealSubType: dealSubType,
@@ -423,7 +484,9 @@ export default function LoftIntegration({
           ownerName: agent.attributes?.name || agent.name,
           ...(isLease ? leasedPrice && { sellPrice: leasedPrice } : salesPrice && { sellPrice: salesPrice }),
           teamDeal: deal.brand.brand_type === 'Team',
-          ...(outsideBrokerageName && { outsideBrokerageName })
+          ...(outsideBrokerageName && { outsideBrokerageName }),
+          ...(buyerNames && { buyerNames }),
+          ...(sellerNames && { sellerNames })
         }
       }
     }
@@ -1243,9 +1306,11 @@ export default function LoftIntegration({
                 <Ui.InputLabel>Brokerage</Ui.InputLabel>
                 <Ui.Select
                   value={selectedBrokerageId}
-                  onChange={e =>
-                    setSelectedBrokerageId(e.target.value as string)
-                  }
+                  onChange={async e => {
+                    const brokerageId = e.target.value as string
+                    setSelectedBrokerageId(brokerageId)
+                    await loadOffices(brokerageId)
+                  }}
                   disabled={isExistingDeal}
                   style={{
                     backgroundColor: isExistingDeal ? '#f5f5f5' : 'white',
@@ -1256,6 +1321,26 @@ export default function LoftIntegration({
                     <Ui.MenuItem key={brokerage.id} value={brokerage.id}>
                       {brokerage.attributes?.name ||
                         `Brokerage ${brokerage.id}`}
+                    </Ui.MenuItem>
+                  ))}
+                </Ui.Select>
+              </Ui.FormControl>
+
+              {/* Office Selection */}
+              <Ui.FormControl fullWidth variant="outlined" size="small">
+                <Ui.InputLabel>Office</Ui.InputLabel>
+                <Ui.Select
+                  value={selectedOfficeId}
+                  onChange={e => setSelectedOfficeId(e.target.value as string)}
+                  disabled={isFormLocked || !selectedBrokerageId || offices.length === 0}
+                  style={{
+                    backgroundColor: (isFormLocked || !selectedBrokerageId) ? '#f5f5f5' : 'white',
+                    opacity: (isFormLocked || !selectedBrokerageId) ? 0.7 : 1
+                  }}
+                >
+                  {offices.map(office => (
+                    <Ui.MenuItem key={office.id} value={office.id}>
+                      {office.attributes?.name || `Office ${office.id}`}
                     </Ui.MenuItem>
                   ))}
                 </Ui.Select>
