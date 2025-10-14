@@ -72,7 +72,7 @@ export default function LoftIntegration({
     setTimeout(() => setStatus(null), 3000)
   }
 
-  const isFormLocked = originalSaleStatus === 'firm'
+  const isFormLocked = originalSaleStatus === 'closed'
 
   const getStatusInfo = () => {
     if (!isExistingDeal) {
