@@ -61,6 +61,7 @@ export default function LoftIntegration({
   const [loft47Url, setLoft47Url] = React.useState('')
   const [loft47DealId, setLoft47DealId] = React.useState('')
   const [primaryAgent, setPrimaryAgent] = React.useState<any>(null)
+  const [originalSaleStatus, setOriginalSaleStatus] = React.useState<string | null>(null)
 
   const showStatus = (
     message: string,
@@ -71,7 +72,7 @@ export default function LoftIntegration({
     setTimeout(() => setStatus(null), 3000)
   }
 
-  const isFormLocked = saleStatus === 'firm'
+  const isFormLocked = originalSaleStatus === 'firm'
 
   const getStatusInfo = () => {
     if (!isExistingDeal) {
@@ -238,6 +239,7 @@ export default function LoftIntegration({
       setLeadSource(dealData.leadSource || '')
       setPropertyType(dealData.propertyType || '')
       setSaleStatus(dealData.saleStatus || '')
+      setOriginalSaleStatus(dealData.saleStatus || '')
       
       // Set office selection from existing deal
       if (dealData.officeId) {
