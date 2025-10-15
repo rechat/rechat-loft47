@@ -16,11 +16,8 @@ export const dealSubTypes = [
 ]
 
 export const leadSources = [
-  { id: 'agent', label: 'Agent' },
-  { id: 'referral', label: 'Referral' },
-  { id: 'website', label: 'Website' },
-  { id: 'advertising', label: 'Advertising' },
-  { id: 'sign_call', label: 'Sign Call' }
+  { id: 'company', label: 'Company' },
+  { id: 'agent', label: 'Agent' }
 ]
 
 export const propertyTypes = [
@@ -29,10 +26,11 @@ export const propertyTypes = [
 ]
 
 export const saleStatuses = [
+  { id: 'conditional', label: 'Conditional' },
   { id: 'firm', label: 'Firm' },
-  { id: 'active', label: 'Active' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'closed', label: 'Closed' }
+  { id: 'closed', label: 'Closed' },
+  { id: 'collapsed', label: 'Collapsed' },
+  { id: 'voided', label: 'Voided' }
 ]
 
 // Deal contexts we care about
@@ -118,4 +116,26 @@ export function decideOwningSide(deal: any) {
   }
 
   return side
+}
+
+export const getOtherAgents = (roles: IDealRole[], deal: IDeal) => {
+  let other_agent_type = ''
+  if (deal.deal_type === 'Buying') {
+    other_agent_type = 'SellerAgent'
+  } else if (deal.deal_type === 'Selling') {
+    other_agent_type = 'BuyerAgent'
+  }
+  const otherAgents = roles.filter(role => role.role === other_agent_type)
+  return otherAgents
+}
+
+// Extract brand IDs from a deal's brand hierarchy
+export const extractBrandIds = (deal: IDeal): string[] => {
+  const brandIds: string[] = []
+  let currentBrand = deal.brand
+  while (currentBrand) {
+    brandIds.push(currentBrand.id)
+    currentBrand = currentBrand.parent
+  }
+  return brandIds
 }

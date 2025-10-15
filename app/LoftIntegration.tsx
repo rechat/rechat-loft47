@@ -3,7 +3,6 @@ import React from '@libs/react'
 
 import { api } from './api'
 import {
-  dealTypes,
   dealSubTypes,
   leadSources,
   propertyTypes,
@@ -13,7 +12,9 @@ import {
   formatDate,
   decideRoleType,
   isAgentRole,
-  decideOwningSide
+  decideOwningSide,
+  getOtherAgents,
+  extractBrandIds
 } from './utils'
 
 interface Props {
@@ -40,7 +41,6 @@ export default function LoftIntegration({
   const [needsCredentials, setNeedsCredentials] = React.useState(false)
 
   // Form state
-  const [dealType, setDealType] = React.useState('')
   const [dealSubType, setDealSubType] = React.useState('')
   const [leadSource, setLeadSource] = React.useState('')
   const [propertyType, setPropertyType] = React.useState('')
@@ -56,9 +56,12 @@ export default function LoftIntegration({
 
   // Internal state
   const [brokerages, setBrokerages] = React.useState<any[]>([])
+  const [offices, setOffices] = React.useState<any[]>([])
+  const [selectedOfficeId, setSelectedOfficeId] = React.useState('')
   const [loft47Url, setLoft47Url] = React.useState('')
   const [loft47DealId, setLoft47DealId] = React.useState('')
   const [primaryAgent, setPrimaryAgent] = React.useState<any>(null)
+  const [originalSaleStatus, setOriginalSaleStatus] = React.useState<string | null>(null)
 
   const showStatus = (
     message: string,
@@ -69,7 +72,7 @@ export default function LoftIntegration({
     setTimeout(() => setStatus(null), 3000)
   }
 
-  const isFormLocked = saleStatus === 'firm'
+  const isFormLocked = originalSaleStatus === 'closed'
 
   const getStatusInfo = () => {
     if (!isExistingDeal) {
@@ -134,6 +137,7 @@ export default function LoftIntegration({
     try {
       // Build brand hierarchy for selection
       const hierarchy: any[] = []
+      const brandIds = extractBrandIds(deal)
       let currentBrand = deal.brand
 
       while (currentBrand) {
@@ -148,35 +152,30 @@ export default function LoftIntegration({
         setSelectedBrandId(hierarchy[hierarchy.length - 1].id)
       }
 
-      // 1. Get brand credentials from hierarchy
-      const credentials = await api.getBrandCredentials(deal.brand)
-
-      if (credentials.error) {
+      // 1. Get brokerages (authentication happens automatically)
+      const brokData = await api.getBrokerages(brandIds)
+      if (brokData.error) {
+        if (brokData.status === 404) {
+          setNeedsCredentials(true)
+          setIsInitializing(false)
+          return
+        }
+        showStatus('Could not connect to Loft47', 'warning')
+        setIsInitializing(false)
+        return
+      }
+      
+      // 2. Get app configuration for URLs
+      const config = await api.getAppConfig(brandIds)
+      if (config.error) {
         setNeedsCredentials(true)
         setIsInitializing(false)
 
         return
       }
-
-      const auth = await api.signIn(
-        credentials.LOFT47_EMAIL,
-        credentials.LOFT47_PASSWORD,
-        credentials.LOFT47_API_URL
-      )
-
-      if (auth.error) {
-        setNeedsCredentials(true)
-        setIsInitializing(false)
-
-        return
-      }
-
-      setLoft47Url(credentials.LOFT47_APP_URL || '')
-
-      // 2. Get brokerages
-      const brokData = await api.getBrokerages()
-
-      if (brokData.error || !brokData.data?.length) {
+      
+      setLoft47Url(config.LOFT47_APP_URL || '')
+      if (!brokData.data?.length) {
         showStatus('Ready to sync - no brokerages found')
         setIsInitializing(false)
 
@@ -188,6 +187,7 @@ export default function LoftIntegration({
       // Auto-select first brokerage if only one available
       if (brokData.data.length === 1) {
         setSelectedBrokerageId(brokData.data[0].id)
+        await loadOffices(brokData.data[0].id)
       }
 
       const brokerage = brokData.data[0]
@@ -218,12 +218,10 @@ export default function LoftIntegration({
       setLoft47DealId(mapping.loft47_deal_id)
       // Set the brokerage for existing deals
       setSelectedBrokerageId(brokerage.id)
-
-      const existingDeal = await api.getDeal(
-        brokerage.id,
-        mapping.loft47_deal_id
-      )
-
+      await loadOffices(brokerage.id)
+      
+      const existingDeal = await api.getDeal(brokerage.id, mapping.loft47_deal_id, brandIds)
+      
       if (existingDeal.error) {
         showStatus(
           'Deal was synced before but could not fetch current data',
@@ -237,11 +235,16 @@ export default function LoftIntegration({
       // 5. Populate form with existing data
       const dealData = existingDeal.data.attributes
 
-      setDealType(dealData.dealType || '')
       setDealSubType(dealData.dealSubType || '')
       setLeadSource(dealData.leadSource || '')
       setPropertyType(dealData.propertyType || '')
       setSaleStatus(dealData.saleStatus || '')
+      setOriginalSaleStatus(dealData.saleStatus || '')
+      
+      // Set office selection from existing deal
+      if (dealData.officeId) {
+        setSelectedOfficeId(String(dealData.officeId))
+      }
     } catch (error) {
       console.error('Initialization error:', error)
       showStatus('Ready to sync - initialization failed', 'warning')
@@ -324,8 +327,8 @@ export default function LoftIntegration({
       return false
     }
 
-    if (!dealType) {
-      showStatus('Select deal type', 'warning')
+    if (!selectedOfficeId) {
+      showStatus('Select office', 'warning')
 
       return false
     }
@@ -357,12 +360,43 @@ export default function LoftIntegration({
     return true
   }
 
-  const findOrCreateAgent = async (brokerageId: string, agent: any) => {
-    const profiles = await api.getProfiles(brokerageId, { email: agent.email })
-
-    if (profiles.error) {
-      return null
+  const loadOffices = async (brokerageId: string) => {
+    if (!brokerageId) {
+      setOffices([])
+      setSelectedOfficeId('')
+      return
     }
+
+    try {
+      const brandIds = extractBrandIds(deal)
+      const officesData = await api.getOffices(brokerageId, brandIds)
+      
+      if (officesData.error) {
+        console.error('Error loading offices:', officesData.error)
+        showStatus('Failed to load offices', 'warning')
+        return
+      }
+
+      setOffices(officesData.data || [])
+      
+      // Auto-select first office if only one available
+      if (officesData.data?.length === 1) {
+        setSelectedOfficeId(officesData.data[0].id)
+      } else {
+        setSelectedOfficeId('')
+      }
+    } catch (error) {
+      console.error('Error loading offices:', error)
+      showStatus('Failed to load offices', 'warning')
+    }
+  }
+
+  const findOrCreateAgent = async (brokerageId: string, agent: any) => {
+    // Build brand IDs array
+    const brandIds = extractBrandIds(deal)
+    
+    const profiles = await api.getProfiles(brokerageId, { email: agent.email }, brandIds)
+    if (profiles.error) return null
 
     if (profiles.data.length > 0) {
       return profiles.data[0]
@@ -376,36 +410,87 @@ export default function LoftIntegration({
           type: 'Agent'
         }
       }
-    })
+    }, brandIds)
 
     return newAgent.error ? null : newAgent.data
   }
 
   const buildDealPayload = (agent: any) => {
+    console.log('buildDealPayload - agent object:', agent)
+    console.log('buildDealPayload - agent.id:', agent.id)
+    console.log('buildDealPayload - agent.attributes?.id:', agent.attributes?.id)
+    
     const closingDate = getDealContext('closing_date')?.date
     const possessionDate = getDealContext('possession_date')?.date
+    const acceptanceDate = getDealContext('acceptance_date')?.date
 
+    
     // Helper function to check if a date is valid (not null, 0, or empty)
     const isValidDate = (timestamp: any) => {
       return timestamp && timestamp > 0
     }
+    
+    const salesPrice = getDealContext('sales_price')?.text
+    const leasedPrice = getDealContext('leased_price')?.text
+    const blockNumber = getDealContext('block_number')?.text
+    const lotNumber = getDealContext('lot_number')?.text
+    const mlsNum = getDealContext('mls_number')?.text
+    const isLease = deal.property_type?.is_lease || false
+    const dealType = isLease ? 'lease' : 'standard'
+    
+    console.log('Deal context values:', {
+      salesPrice,
+      leasedPrice,
+      isLease,
+      dealType
+    })
+    
+    // Calculate outsideBrokerageName
+    const otherAgents = getOtherAgents(roles, deal)
+    const outsideBrokerageName = otherAgents && otherAgents.length > 0 && otherAgents[0].company_title 
+      ? otherAgents[0].company_title 
+      : undefined
+    
+    // Calculate buyer and seller names from roles
+    const buyerRoles = roles.filter(role => ['Buyer', 'Tenant'].includes(role.role))
+    const sellerRoles = roles.filter(role => ['Seller', 'Landlord'].includes(role.role))
+    
+    const buyerNames = buyerRoles
+      .map(role => role.display_name)
+      .filter(Boolean)
+      .join(', ')
+    
+    const sellerNames = sellerRoles
+      .map(role => role.display_name) 
+      .filter(Boolean)
+      .join(', ')
+    
+    console.log({isLease, leasedPrice, salesPrice, buyerNames, sellerNames})
 
     const payload: any = {
       data: {
         attributes: {
-          ownerId: Number(agent.id),
-          dealSubType,
-          dealType,
-          leadSource,
-          propertyType,
-          saleStatus,
+          ownerId: Number(agent.id || agent.attributes?.id),
+          ...(selectedOfficeId && { officeId: Number(selectedOfficeId) }),
+          ...(blockNumber && { block: blockNumber }),
+          adjustmentAt: new Date().toISOString(),
+          dealSubType: dealSubType,
+          dealType: dealType,
+          leadSource: leadSource,
+          propertyType: propertyType,
+          saleStatus: saleStatus,
           exclusive: !deal.listing,
           externalTransactionId: deal.id,
+          ...(lotNumber && { lot: lotNumber }),
+          ...(mlsNum && { mlsNumber: mlsNum }),
           offer: deal.deal_type === 'Buying',
           owningSide: decideOwningSide(deal),
-          ownerName: agent.attributes.name,
-          sellPrice: getDealContext('sales_price')?.text,
-          teamDeal: deal.brand.brand_type === 'Team'
+          ownerName: agent.attributes?.name || agent.name,
+          ...(isLease ? leasedPrice && { sellPrice: leasedPrice } : salesPrice && { sellPrice: salesPrice }),
+          teamDeal: deal.brand.brand_type === 'Team',
+          ...(outsideBrokerageName && { outsideBrokerageName }),
+          ...(buyerNames && { buyerNames }),
+          ...(sellerNames && { sellerNames })
         }
       }
     }
@@ -425,6 +510,14 @@ export default function LoftIntegration({
 
       if (formattedPossessionDate) {
         payload.data.attributes.possessionAt = formattedPossessionDate
+      }
+    }
+
+    if (isValidDate(acceptanceDate)) {
+      const formattedAcceptanceDate = formatDate(acceptanceDate)
+
+      if (formattedAcceptanceDate) {
+        payload.data.attributes.soldAt = formattedAcceptanceDate
       }
     }
 
@@ -449,8 +542,10 @@ export default function LoftIntegration({
   }
 
   const createNewDeal = async (brokerageId: string, dealPayload: any) => {
-    const newDeal = await api.createDeal(brokerageId, dealPayload)
-
+    // Build brand IDs array
+    const brandIds = extractBrandIds(deal)
+    
+    const newDeal = await api.createDeal(brokerageId, dealPayload, brandIds)
     if (newDeal.error) {
       showStatus('Deal creation failed', 'warning')
 
@@ -468,7 +563,9 @@ export default function LoftIntegration({
     dealId: string,
     dealPayload: any
   ) => {
-    const updatedDeal = await api.updateDeal(brokerageId, dealId, dealPayload)
+    const brandIds = extractBrandIds(deal)
+
+    const updatedDeal = await api.updateDeal(brokerageId, dealId, dealPayload, brandIds)
 
     if (updatedDeal.error) {
       showStatus('Deal update failed', 'warning')
@@ -482,6 +579,8 @@ export default function LoftIntegration({
   }
 
   const updateDealAddress = async (loft47Deal: any) => {
+    const brandIds = extractBrandIds(deal)
+
     const addressId = loft47Deal.data.relationships.address.data.id
 
     await api.updateAddress(addressId, {
@@ -493,7 +592,7 @@ export default function LoftIntegration({
           province: getDealContext('state')?.text
         }
       }
-    })
+    }, brandIds)
   }
 
   const syncDealPeople = async (brokerageId: string, dealId: string) => {
@@ -506,6 +605,8 @@ export default function LoftIntegration({
       const profile = await findOrCreateProfile(brokerageId, role)
 
       if (profile) {
+        const brandIds = extractBrandIds(deal)
+
         await api.createDealAccess(brokerageId, dealId, {
           data: {
             attributes: {
@@ -514,17 +615,17 @@ export default function LoftIntegration({
               side: decideOwningSide(deal)
             }
           }
-        })
+        }, brandIds)
       }
     }
   }
 
   const findOrCreateProfile = async (brokerageId: string, role: any) => {
-    const profiles = await api.getProfiles(brokerageId, { email: role.email })
-
-    if (profiles.error) {
-      return null
-    }
+    // Build brand IDs array
+    const brandIds = extractBrandIds(deal)
+    
+    const profiles = await api.getProfiles(brokerageId, { email: role.email }, brandIds)
+    if (profiles.error) return null
 
     if (profiles.data.length > 0) {
       return profiles.data[0]
@@ -539,7 +640,7 @@ export default function LoftIntegration({
           type: roleType === 'agent' ? 'Agent' : 'Profile'
         }
       }
-    })
+    }, brandIds)
 
     return newProfile.error ? null : newProfile.data
   }
@@ -737,22 +838,8 @@ export default function LoftIntegration({
                 Use Staging Environment
               </Ui.Typography>
             </div>
-
-            {credentialsIsStaging && (
-              <div
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 4,
-                  backgroundColor: '#d1ecf1',
-                  border: '1px solid #bee5eb',
-                  color: '#0c5460',
-                  fontSize: '0.8rem'
-                }}
-              >
-                Staging: api.staging.loft47.com → staging.loft47.com
-              </div>
-            )}
-
+            
+            
             {/* Save Button */}
             <Ui.Button
               variant="contained"
@@ -924,6 +1011,38 @@ export default function LoftIntegration({
               📋 Deal Information
             </Ui.Typography>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {/* Deal Type */}
+              <div
+                style={{
+                  padding: 6,
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: 4,
+                  border: '1px solid #e9ecef'
+                }}
+              >
+                <Ui.Typography
+                  variant="caption"
+                  style={{
+                    color: '#666',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    fontSize: '0.7rem'
+                  }}
+                >
+                  Type
+                </Ui.Typography>
+                <Ui.Typography
+                  variant="body2"
+                  style={{
+                    fontWeight: 500,
+                    marginTop: 1,
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  {deal.property_type?.is_lease ? 'Lease' : 'Sale'}
+                </Ui.Typography>
+              </div>
+
               {/* Address */}
               {getDealContext('full_address')?.text && (
                 <div
@@ -1143,6 +1262,43 @@ export default function LoftIntegration({
                   </div>
                 )}
 
+              {/* Acceptance Date */}
+              {getDealContext('acceptance_date')?.date &&
+                getDealContext('acceptance_date')?.date > 0 && (
+                  <div
+                    style={{
+                      padding: 6,
+                      backgroundColor: '#f8f9fa',
+                      borderRadius: 4,
+                      border: '1px solid #e9ecef'
+                    }}
+                  >
+                    <Ui.Typography
+                      variant="caption"
+                      style={{
+                        color: '#666',
+                        fontWeight: 'bold',
+                        textTransform: 'uppercase',
+                        fontSize: '0.7rem'
+                      }}
+                    >
+                      Acceptance Date
+                    </Ui.Typography>
+                    <Ui.Typography
+                      variant="body2"
+                      style={{
+                        fontWeight: 500,
+                        marginTop: 1,
+                        fontSize: '0.8rem'
+                      }}
+                    >
+                      {new Date(
+                        getDealContext('acceptance_date')?.date * 1000
+                      ).toLocaleDateString()}
+                    </Ui.Typography>
+                  </div>
+                )}
+
               {/* Possession Date */}
               {getDealContext('possession_date')?.date &&
                 getDealContext('possession_date')?.date > 0 && (
@@ -1199,9 +1355,11 @@ export default function LoftIntegration({
                 <Ui.InputLabel>Brokerage</Ui.InputLabel>
                 <Ui.Select
                   value={selectedBrokerageId}
-                  onChange={e =>
-                    setSelectedBrokerageId(e.target.value as string)
-                  }
+                  onChange={async e => {
+                    const brokerageId = e.target.value as string
+                    setSelectedBrokerageId(brokerageId)
+                    await loadOffices(brokerageId)
+                  }}
                   disabled={isExistingDeal}
                   style={{
                     backgroundColor: isExistingDeal ? '#f5f5f5' : 'white',
@@ -1217,51 +1375,44 @@ export default function LoftIntegration({
                 </Ui.Select>
               </Ui.FormControl>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 12
-                }}
-              >
-                <Ui.FormControl fullWidth variant="outlined" size="small">
-                  <Ui.InputLabel>Deal Type</Ui.InputLabel>
-                  <Ui.Select
-                    value={dealType}
-                    onChange={e => setDealType(e.target.value as string)}
-                    disabled={isFormLocked}
-                    style={{
-                      backgroundColor: isFormLocked ? '#f5f5f5' : 'white',
-                      opacity: isFormLocked ? 0.7 : 1
-                    }}
-                  >
-                    {dealTypes.map(opt => (
-                      <Ui.MenuItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </Ui.MenuItem>
-                    ))}
-                  </Ui.Select>
-                </Ui.FormControl>
+              {/* Office Selection */}
+              <Ui.FormControl fullWidth variant="outlined" size="small">
+                <Ui.InputLabel>Office</Ui.InputLabel>
+                <Ui.Select
+                  value={selectedOfficeId}
+                  onChange={e => setSelectedOfficeId(e.target.value as string)}
+                  disabled={isFormLocked || !selectedBrokerageId || offices.length === 0}
+                  style={{
+                    backgroundColor: (isFormLocked || !selectedBrokerageId) ? '#f5f5f5' : 'white',
+                    opacity: (isFormLocked || !selectedBrokerageId) ? 0.7 : 1
+                  }}
+                >
+                  {offices.map(office => (
+                    <Ui.MenuItem key={office.id} value={office.id}>
+                      {office.attributes?.name || `Office ${office.id}`}
+                    </Ui.MenuItem>
+                  ))}
+                </Ui.Select>
+              </Ui.FormControl>
 
-                <Ui.FormControl fullWidth variant="outlined" size="small">
-                  <Ui.InputLabel>Property Type</Ui.InputLabel>
-                  <Ui.Select
-                    value={propertyType}
-                    onChange={e => setPropertyType(e.target.value as string)}
-                    disabled={isFormLocked}
-                    style={{
-                      backgroundColor: isFormLocked ? '#f5f5f5' : 'white',
-                      opacity: isFormLocked ? 0.7 : 1
-                    }}
-                  >
-                    {propertyTypes.map(opt => (
-                      <Ui.MenuItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </Ui.MenuItem>
-                    ))}
-                  </Ui.Select>
-                </Ui.FormControl>
-              </div>
+              <Ui.FormControl fullWidth variant="outlined" size="small">
+                <Ui.InputLabel>Property Type</Ui.InputLabel>
+                <Ui.Select
+                  value={propertyType}
+                  onChange={e => setPropertyType(e.target.value as string)}
+                  disabled={isFormLocked}
+                  style={{
+                    backgroundColor: isFormLocked ? '#f5f5f5' : 'white',
+                    opacity: isFormLocked ? 0.7 : 1
+                  }}
+                >
+                  {propertyTypes.map(opt => (
+                    <Ui.MenuItem key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </Ui.MenuItem>
+                  ))}
+                </Ui.Select>
+              </Ui.FormControl>
 
               <Ui.FormControl fullWidth variant="outlined" size="small">
                 <Ui.InputLabel>Deal Sub Type</Ui.InputLabel>

@@ -28,27 +28,10 @@ app.use(compress())
 app.use(express.json())
 
 app.use(
-  cors(
-    (
-      req: Request,
-      callback: (err: Error | null, options?: CorsOptions) => void
-    ) => {
-      const isAssetRequest =
-        /bundle\.\d+\.js|bundle\.js\?v=\w+/.test(req.originalUrl) ||
-        req.originalUrl.endsWith('.json')
-
-      const allowedOrigins = ['https://app.rechat.com']
-      const origin = req.header('Origin')
-
-      const allow =
-        isAssetRequest || (origin && allowedOrigins.includes(origin))
-
-      callback(null, {
-        origin: allow,
-        credentials: true // if you're using cookies/sessions
-      })
-    }
-  )
+  cors({
+    origin: ['https://app.rechat.com'],
+    credentials: true
+  })
 )
 
 app.use(
@@ -82,6 +65,8 @@ if (isDevelopment) {
   )
 
   app.use('/static', express.static(path.resolve(__dirname, '../app/static')))
+  // Serve manifest.json from root in development
+  app.use('/manifest.json', express.static(path.resolve(__dirname, '../manifest.json')))
 }
 
 if (isProduction) {
@@ -91,9 +76,7 @@ if (isProduction) {
 
   app.use(
     '/',
-    serveStatic(path.resolve(__dirname, '../../dist-web'), {
-      maxAge: '7d'
-    })
+    serveStatic(path.resolve(__dirname, '../dist-web'))
   )
 }
 
@@ -112,9 +95,7 @@ function haltOnTimedout(
 }
 
 throng({
-  workers: isDevelopment
-    ? 1
-    : process.env.WEB_CONCURRENCY || Math.max(os.cpus().length, 8) || 1,
+  workers: 1,
   lifetime: Infinity,
   start: () => {
     app.listen(port, () => console.log(`App is started on 0.0.0.0:${port}`))
