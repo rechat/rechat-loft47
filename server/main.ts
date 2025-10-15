@@ -71,6 +71,10 @@ if (isDevelopment) {
 
   const compiler = webpack(config)
 
+  if (!compiler) {
+    throw new Error('Webpack compiler initialization failed')
+  }
+
   app.use(
     webpackDevMiddleware(compiler, {
       publicPath: config.output.publicPath

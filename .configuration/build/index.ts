@@ -23,6 +23,11 @@ function compile() {
   const compiler = webpack(config)
 
   return new Promise((resolve, reject) => {
+    if (!compiler) {
+      reject(new Error('Webpack compiler initialization failed'))
+      return
+    }
+    
     compiler.run((err: any, stats: any) => {
       if (err) {
         console.trace('Run error', err.stack)
