@@ -1261,6 +1261,43 @@ export default function LoftIntegration({
                   </div>
                 )}
 
+              {/* Acceptance Date */}
+              {getDealContext('acceptance_date')?.date &&
+                getDealContext('acceptance_date')?.date > 0 && (
+                  <div
+                    style={{
+                      padding: 6,
+                      backgroundColor: '#f8f9fa',
+                      borderRadius: 4,
+                      border: '1px solid #e9ecef'
+                    }}
+                  >
+                    <Ui.Typography
+                      variant="caption"
+                      style={{
+                        color: '#666',
+                        fontWeight: 'bold',
+                        textTransform: 'uppercase',
+                        fontSize: '0.7rem'
+                      }}
+                    >
+                      Acceptance Date
+                    </Ui.Typography>
+                    <Ui.Typography
+                      variant="body2"
+                      style={{
+                        fontWeight: 500,
+                        marginTop: 1,
+                        fontSize: '0.8rem'
+                      }}
+                    >
+                      {new Date(
+                        getDealContext('acceptance_date')?.date * 1000
+                      ).toLocaleDateString()}
+                    </Ui.Typography>
+                  </div>
+                )}
+
               {/* Possession Date */}
               {getDealContext('possession_date')?.date &&
                 getDealContext('possession_date')?.date > 0 && (
