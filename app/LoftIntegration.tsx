@@ -424,6 +424,7 @@ export default function LoftIntegration({
     const possessionDate = getDealContext('possession_date')?.date
     const acceptanceDate = getDealContext('acceptance_date')?.date
 
+    
     // Helper function to check if a date is valid (not null, 0, or empty)
     const isValidDate = (timestamp: any) => {
       return timestamp && timestamp > 0
