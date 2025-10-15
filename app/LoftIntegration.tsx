@@ -422,6 +422,7 @@ export default function LoftIntegration({
     
     const closingDate = getDealContext('closing_date')?.date
     const possessionDate = getDealContext('possession_date')?.date
+    const acceptanceDate = getDealContext('acceptance_date')?.date
 
     // Helper function to check if a date is valid (not null, 0, or empty)
     const isValidDate = (timestamp: any) => {
@@ -508,6 +509,14 @@ export default function LoftIntegration({
 
       if (formattedPossessionDate) {
         payload.data.attributes.possessionAt = formattedPossessionDate
+      }
+    }
+
+    if (isValidDate(acceptanceDate)) {
+      const formattedAcceptanceDate = formatDate(acceptanceDate)
+
+      if (formattedAcceptanceDate) {
+        payload.data.attributes.soldAt = formattedAcceptanceDate
       }
     }
 
