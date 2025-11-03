@@ -27,6 +27,12 @@ interface Props {
   }
 }
 
+const wait = ms => {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms)
+  })
+}
+
 export default function LoftIntegration({
   models: { deal, roles },
   api: { getDealContext }
@@ -395,20 +401,41 @@ export default function LoftIntegration({
     // Build brand IDs array
     const brandIds = extractBrandIds(deal)
     
-    const profiles = await api.getProfiles(brokerageId, { email: agent.email }, brandIds)
+    // Try to find existing profile by email first, then phone, then name
+    let profiles
+    if (agent.email) {
+      profiles = await api.getProfiles(brokerageId, { email: agent.email }, brandIds)
+    } else if (agent.phone_number) {
+      profiles = await api.getProfiles(brokerageId, { phoneNumber: agent.phone_number }, brandIds)
+    } else if (agent.legal_full_name) {
+      profiles = await api.getProfiles(brokerageId, { name: agent.legal_full_name }, brandIds)
+    } else {
+      return null // No email, phone, or name to search by
+    }
+    
     if (profiles.error) return null
 
     if (profiles.data.length > 0) {
       return profiles.data[0]
     }
 
+    // Create new profile with available contact info
+    const profileData: any = {
+      name: agent.legal_full_name,
+      type: 'Agent'
+    }
+    
+    if (agent.email) {
+      profileData.email = agent.email
+    }
+    
+    if (agent.phone_number) {
+      profileData.phoneNumber = agent.phone_number
+    }
+
     const newAgent = await api.createProfile(brokerageId, {
       data: {
-        attributes: {
-          email: agent.email,
-          name: agent.legal_full_name,
-          type: 'Agent'
-        }
+        attributes: profileData
       }
     }, brandIds)
 
@@ -598,13 +625,17 @@ export default function LoftIntegration({
   const syncDealPeople = async (brokerageId: string, dealId: string) => {
     // Simple people sync - create profiles and accesses for all roles
     for (const role of roles) {
-      if (!role.email) {
+      // Skip roles that have no email, phone, or name
+      if (!role.email && !role.phone_number && !role.legal_full_name) {
         continue
       }
 
       const profile = await findOrCreateProfile(brokerageId, role)
+      await wait(500)
+      console.log('Profile of', role.legal_full_name, profile)
 
       if (profile) {
+        console.log('Creating Deal Access')
         const brandIds = extractBrandIds(deal)
 
         await api.createDealAccess(brokerageId, dealId, {
@@ -624,21 +655,43 @@ export default function LoftIntegration({
     // Build brand IDs array
     const brandIds = extractBrandIds(deal)
     
-    const profiles = await api.getProfiles(brokerageId, { email: role.email }, brandIds)
+    // Try to find existing profile by email first, then phone, then name
+    let profiles
+    if (role.email) {
+      profiles = await api.getProfiles(brokerageId, { email: role.email }, brandIds)
+    } else if (role.phone_number) {
+      profiles = await api.getProfiles(brokerageId, { phoneNumber: role.phone_number }, brandIds)
+    } else if (role.legal_full_name) {
+      profiles = await api.getProfiles(brokerageId, { name: role.legal_full_name }, brandIds)
+    } else {
+      return null // No email, phone, or name to search by
+    }
+    
+    console.log('findOrCreate', role.legal_full_name, profiles)
     if (profiles.error) return null
 
     if (profiles.data.length > 0) {
       return profiles.data[0]
     }
 
+    // Create new profile with available contact info
     const roleType = decideRoleType(role)
+    const profileData: any = {
+      name: role.legal_full_name,
+      type: roleType === 'agent' ? 'Agent' : 'Profile'
+    }
+    
+    if (role.email) {
+      profileData.email = role.email
+    }
+    
+    if (role.phone_number) {
+      profileData.phoneNumber = role.phone_number
+    }
+
     const newProfile = await api.createProfile(brokerageId, {
       data: {
-        attributes: {
-          email: role.email,
-          name: role.legal_full_name,
-          type: roleType === 'agent' ? 'Agent' : 'Profile'
-        }
+        attributes: profileData
       }
     }, brandIds)
 

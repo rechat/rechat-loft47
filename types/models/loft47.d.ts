@@ -36,7 +36,9 @@ type ProfileType =
   | 'Profile'
 
 type ProfileFilters = {
-  email: string
+  email?: string
+  phoneNumber?: string
+  name?: string
   type?: ProfileType
 }
 

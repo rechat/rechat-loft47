@@ -108,7 +108,7 @@ export function decideOwningSide(deal: any) {
   const enderType = deal.context.ender_type?.text
 
   if (
-    ['OfficeDoubleEnder', 'OfficeSingleEnder', 'AgentDoubleEnder'].includes(
+    ['OfficeDoubleEnder', 'AgentDoubleEnder'].includes(
       enderType
     )
   ) {

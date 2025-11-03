@@ -260,6 +260,7 @@ export async function getProfiles(req: Request, res: Response) {
     const queryParams = new URLSearchParams()
     Object.keys(req.query).forEach(key => {
       if (key !== 'brand_ids' && req.query[key]) {
+        // Support both email and phoneNumber filters
         queryParams.append(`filter[${key}]`, req.query[key] as string)
       }
     })
