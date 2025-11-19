@@ -27,12 +27,6 @@ interface Props {
   }
 }
 
-const wait = (ms: number) => {
-  return new Promise(resolve => {
-    setTimeout(resolve, ms)
-  })
-}
-
 export default function LoftIntegration({
   models: { deal, roles },
   api: { getDealContext }
@@ -631,7 +625,6 @@ export default function LoftIntegration({
       }
 
       const profile = await findOrCreateProfile(brokerageId, role)
-      await wait(500)
       console.log('Profile of', role.legal_full_name, profile)
 
       if (profile) {
@@ -642,7 +635,7 @@ export default function LoftIntegration({
           data: {
             attributes: {
               profileId: String(profile.attributes.id),
-              role: decideRoleType(role),
+              role: decideRoleType(deal, role),
               side: decideOwningSide(deal)
             }
           }
@@ -675,7 +668,7 @@ export default function LoftIntegration({
     }
 
     // Create new profile with available contact info
-    const roleType = decideRoleType(role)
+    const roleType = decideRoleType(deal, role)
     const profileData: any = {
       name: role.legal_full_name,
       type: roleType === 'agent' ? 'Agent' : 'Profile'

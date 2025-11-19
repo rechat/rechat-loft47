@@ -31,6 +31,13 @@ export const brandLoft47Credentials = pgTable('brand_loft47_credentials', {
 
   isStaging: boolean('is_staging').notNull().default(false),
 
+  token: varchar('token', { length: 1000 }),
+
+  tokenExpiresAt: timestamp('token_expires_at', {
+    withTimezone: true,
+    precision: 6
+  }),
+
   createdAt: timestamp('created_at', {
     withTimezone: true,
     precision: 6

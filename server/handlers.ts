@@ -78,7 +78,19 @@ async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, a
         ? 'https://staging.loft47.com'
         : 'https://app.loft47.com'
 
-      // Create API instance for this brand
+      // Check if we have a cached, non-expired token
+      if (credentials.token && credentials.tokenExpiresAt) {
+        const now = new Date()
+        const expiresAt = new Date(credentials.tokenExpiresAt)
+        
+        if (expiresAt > now) {
+          // Token is still valid, use it
+          const authenticatedApi = createAuthenticatedApiInstance(apiUrl, credentials.token)
+          return { api: authenticatedApi, appUrl, isStaging: credentials.isStaging, token: credentials.token, apiUrl }
+        }
+      }
+
+      // No valid cached token, need to authenticate
       const api = createApiInstance(apiUrl)
       
       try {
@@ -92,6 +104,19 @@ async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, a
         
         const token = authResponse.headers.authorization
         if (token) {
+          // Calculate token expiry (assuming 24 hours from now, adjust as needed)
+          const expiresAt = new Date()
+          expiresAt.setHours(expiresAt.getHours() + 24)
+          
+          // Store the token and expiry in the database
+          await db
+            .update(brandLoft47Credentials)
+            .set({
+              token: token,
+              tokenExpiresAt: expiresAt
+            })
+            .where(eq(brandLoft47Credentials.brandId, brandId))
+          
           // Return authenticated API instance
           const authenticatedApi = createAuthenticatedApiInstance(apiUrl, token)
           return { api: authenticatedApi, appUrl, isStaging: credentials.isStaging, token, apiUrl }
@@ -103,8 +128,16 @@ async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, a
         console.error('Loft47 authentication failed:', authError.message)
         console.error('Auth error details:', authError.response?.status, authError.response?.data)
         
-        // If it's a 401 from Loft47, that means bad credentials - throw specific error
+        // If it's a 401 from Loft47, that means bad credentials - clear cached token and throw specific error
         if (authError.response?.status === 401) {
+          await db
+            .update(brandLoft47Credentials)
+            .set({
+              token: null,
+              tokenExpiresAt: null
+            })
+            .where(eq(brandLoft47Credentials.brandId, brandId))
+          
           throw new Error('Authentication failed')
         }
         

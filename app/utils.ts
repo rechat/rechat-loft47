@@ -74,14 +74,26 @@ export function formatDate(timestamp: number) {
   return `${iso}${sign}${hours}:${minutes}`
 }
 
-export function decideRoleType(role: any) {
-  if (
-    ['BuyerAgent', 'SellerAgent', 'CoBuyerAgent', 'CoSellerAgent'].includes(
-      role.role
-    )
-  ) {
+const buyer_agents = ['BuyerAgent', 'CoBuyerAgent']
+const seller_agents = ['SellerAgent', 'CoSellerAgent']
+const all_agents = [...buyer_agents, ...seller_agents]
+
+export function decideRoleType(deal: any, role: any) {
+  const enderType = deal.context.ender_type?.text
+  const double_ender = ['OfficeDoubleEnder', 'AgentDoubleEnder'].includes(enderType)
+  
+  if (double_ender && seller_agents.includes(role.role))
     return 'agent'
-  }
+
+  if (deal.deal_type === 'Buying' && buyer_agents.includes(role.role))
+    return 'agent'
+
+  if (deal.deal_type === 'Selling' && seller_agents.includes(role.role))
+    return 'agent'
+
+  console.log(role.email, role.role, deal.deal_type)
+  if (all_agents.includes(role.role))
+    return 'outside_brokerage'
 
   if (role.role === 'Title') {
     return 'title_company'
@@ -98,6 +110,9 @@ export function decideRoleType(role: any) {
   if (['Lawyer', 'SellerLawyer', 'BuyerLawyer'].includes(role.role)) {
     return 'lawyer'
   }
+
+  if (['BuyerReferral', 'SellerReferral'].includes(role.role))
+    return 'source_of_business'
 
   return 'other_profile'
 }
