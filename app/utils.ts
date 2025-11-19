@@ -84,14 +84,22 @@ export function decideRoleType(role: any) {
   }
 
   if (role.role === 'Title') {
-    return 'title'
+    return 'title_company'
   }
 
-  if (['Buyer', 'Seller', 'Tenant', 'Landlord'].includes(role.role)) {
-    return role.role.toLowerCase()
+  if (['Buyer', 'Tenant'].includes(role.role)) {
+    return 'buyer'
   }
 
-  return 'other'
+  if (['Seller', 'Landlord'].includes(role.role)) {
+    return 'seller'
+  }
+
+  if (['Lawyer', 'SellerLawyer', 'BuyerLawyer'].includes(role.role)) {
+    return 'lawyer'
+  }
+
+  return 'other_profile'
 }
 
 export function isAgentRole(roleType: string) {
