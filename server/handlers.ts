@@ -26,7 +26,7 @@ function extractBrandIds(req: Request): { brandIds: string[] | null, error: stri
 }
 
 // Helper function to authenticate and handle common error responses
-async function authenticateRequest(req: Request, res: Response): Promise<{ api: any, appUrl?: string, isStaging?: boolean, token?: string, apiUrl?: string } | null> {
+async function authenticateRequest(req: Request, res: Response): Promise<{ api: any, appUrl?: string, isStaging?: boolean, token?: string, apiUrl?: string, brandId?: string } | null> {
   const { brandIds, error } = extractBrandIds(req)
   
   if (error || !brandIds) {
@@ -41,7 +41,8 @@ async function authenticateRequest(req: Request, res: Response): Promise<{ api: 
       return null
     }
     
-    return authResult
+    // Add brandId to the result for token refresh purposes (use the actual brand that has credentials)
+    return { ...authResult, brandId: authResult.actualBrandId }
   } catch (err: any) {
     // Handle specific authentication failure
     if (err.message === 'Authentication failed') {
@@ -54,8 +55,118 @@ async function authenticateRequest(req: Request, res: Response): Promise<{ api: 
   }
 }
 
+// Helper function to make API calls with automatic token refresh on 401
+async function makeAuthenticatedRequest(authResult: any, apiCallFactory: (api: any) => Promise<any>): Promise<any> {
+  try {
+    return await apiCallFactory(authResult.api)
+  } catch (err: any) {
+    // If we get a 401, try refreshing the token once
+    if (err.response?.status === 401 && authResult.brandId) {
+      console.log('Received 401, attempting to refresh token for brand:', authResult.brandId, '(actual brand with credentials)')
+      
+      try {
+        const refreshedAuth = await refreshTokenForBrand(authResult.brandId)
+        if (refreshedAuth) {
+          console.log('Token refreshed successfully, retrying request')
+          // Retry the original request with the new API instance
+          return await apiCallFactory(refreshedAuth.api)
+        }
+      } catch (refreshError: any) {
+        console.error('Token refresh failed:', refreshError.message)
+        // If refresh fails, throw the original error
+        throw err
+      }
+    }
+    
+    // For non-401 errors or if refresh failed, throw the original error
+    throw err
+  }
+}
+
+// Force refresh a token for a specific brand
+async function refreshTokenForBrand(brandId: string): Promise<{ api: any, appUrl?: string, isStaging?: boolean, token?: string, apiUrl?: string } | null> {
+  console.log('Refreshing token for brand:', brandId)
+  
+  const [credentials] = await db
+    .select()
+    .from(brandLoft47Credentials)
+    .where(eq(brandLoft47Credentials.brandId, brandId))
+  
+  if (!credentials) {
+    console.log('No credentials found for brand:', brandId)
+    return null
+  }
+  
+  // Set up API configuration
+  const apiUrl = credentials.isStaging 
+    ? 'https://api.staging.loft47.com/v1'
+    : 'https://api.loft47.com/v1'
+  
+  const appUrl = credentials.isStaging
+    ? 'https://staging.loft47.com'
+    : 'https://app.loft47.com'
+
+  const api = createApiInstance(apiUrl)
+  
+  try {
+    console.log('Making fresh authentication request to:', apiUrl)
+    
+    // Authenticate with Loft47 server-side
+    const authResponse = await api.post('/sign_in', {
+      user: {
+        email: credentials.loft47Email,
+        password: credentials.loft47Password
+      }
+    })
+    
+    const token = authResponse.headers.authorization
+    console.log('Received new token:', token ? `${token.substring(0, 20)}...` : 'null')
+    
+    if (token) {
+      // Calculate token expiry (assuming 24 hours from now, adjust as needed)
+      const expiresAt = new Date()
+      expiresAt.setHours(expiresAt.getHours() + 24)
+      
+      console.log('Storing new token in database with expiry:', expiresAt)
+      
+      // Store the token and expiry in the database
+      await db
+        .update(brandLoft47Credentials)
+        .set({
+          token: token,
+          tokenExpiresAt: expiresAt
+        })
+        .where(eq(brandLoft47Credentials.brandId, brandId))
+      
+      // Return authenticated API instance
+      const authenticatedApi = createAuthenticatedApiInstance(apiUrl, token)
+      console.log('Created new authenticated API instance with fresh token')
+      
+      return { api: authenticatedApi, appUrl, isStaging: credentials.isStaging, token, apiUrl }
+    }
+    
+    console.log('No authorization token received from Loft47')
+    return { api, appUrl, isStaging: credentials.isStaging, apiUrl }
+    
+  } catch (authError: any) {
+    console.error('Loft47 token refresh failed:', authError.message)
+    console.error('Auth error details:', authError.response?.status, authError.response?.data)
+    
+    // Clear cached token on any authentication error
+    await db
+      .update(brandLoft47Credentials)
+      .set({
+        token: null,
+        tokenExpiresAt: null
+      })
+      .where(eq(brandLoft47Credentials.brandId, brandId))
+    
+    throw authError
+  }
+}
+
 // Middleware to authenticate with Loft47 based on brand hierarchy
-async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, appUrl?: string, isStaging?: boolean, token?: string, apiUrl?: string } | null> {
+async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, appUrl?: string, isStaging?: boolean, token?: string, apiUrl?: string, actualBrandId?: string } | null> {
   if (!brandIds || brandIds.length === 0) return null
   
   // Use the brand hierarchy provided
@@ -69,6 +180,8 @@ async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, a
       .where(eq(brandLoft47Credentials.brandId, brandId))
     
     if (credentials) {
+      console.log('Found credentials for brand:', brandId)
+      
       // Set up API configuration
       const apiUrl = credentials.isStaging 
         ? 'https://api.staging.loft47.com/v1'
@@ -85,8 +198,9 @@ async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, a
         
         if (expiresAt > now) {
           // Token is still valid, use it
+          console.log('Using cached token for brand:', brandId)
           const authenticatedApi = createAuthenticatedApiInstance(apiUrl, credentials.token)
-          return { api: authenticatedApi, appUrl, isStaging: credentials.isStaging, token: credentials.token, apiUrl }
+          return { api: authenticatedApi, appUrl, isStaging: credentials.isStaging, token: credentials.token, apiUrl, actualBrandId: brandId }
         }
       }
 
@@ -119,10 +233,10 @@ async function authenticateWithLoft47(brandIds: string[]): Promise<{ api: any, a
           
           // Return authenticated API instance
           const authenticatedApi = createAuthenticatedApiInstance(apiUrl, token)
-          return { api: authenticatedApi, appUrl, isStaging: credentials.isStaging, token, apiUrl }
+          return { api: authenticatedApi, appUrl, isStaging: credentials.isStaging, token, apiUrl, actualBrandId: brandId }
         }
         
-        return { api, appUrl, isStaging: credentials.isStaging, apiUrl }
+        return { api, appUrl, isStaging: credentials.isStaging, apiUrl, actualBrandId: brandId }
         
       } catch (authError: any) {
         console.error('Loft47 authentication failed:', authError.message)
@@ -225,9 +339,12 @@ export async function getBrokerages(req: Request, res: Response) {
     const authResult = await authenticateRequest(req, res)
     if (!authResult) return // Response already sent
     
-    const response = await authResult.api.get('/brokerages')
+    const response = await makeAuthenticatedRequest(authResult, (api) => 
+      api.get('/brokerages')
+    )
     res.status(response.status).json(response.data)
   } catch (err: any) {
+    console.log(err)
     if (err.response?.status) {
       return res.status(err.response.status).json({ 
         error: err.response.data?.message || err.response.data || err.message 
@@ -245,9 +362,11 @@ export async function createBrokerage(req: Request, res: Response) {
     if (!authResult) return // Response already sent
     
     const { brand_ids, ...data } = req.body
-    const response = await authResult.api.post('/brokerages', data, {
-      headers: { 'Content-Type': 'application/json' }
-    })
+    const response = await makeAuthenticatedRequest(authResult, (api) =>
+      api.post('/brokerages', data, {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    )
     
     res.status(response.status).json(response.data)
   } catch (err: any) {
@@ -301,7 +420,9 @@ export async function getProfiles(req: Request, res: Response) {
     const queryString = queryParams.toString()
     const url = `/brokerages/${brokerage_id}/profiles${queryString ? `?${queryString}` : ''}`
     
-    const response = await authResult.api.get(url)
+    const response = await makeAuthenticatedRequest(authResult, (api) =>
+      api.get(url)
+    )
     res.status(response.status).json(response.data)
   } catch (err: any) {
     if (err.response?.status) {
@@ -391,9 +512,11 @@ export async function createDeal(req: Request, res: Response) {
     
     const { brand_ids, ...data } = req.body
 
-    const response = await authResult.api.post(`/brokerages/${brokerage_id}/deals`, data, {
-      headers: { 'Content-Type': 'application/json' }
-    })
+    const response = await makeAuthenticatedRequest(authResult, (api) =>
+      api.post(`/brokerages/${brokerage_id}/deals`, data, {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    )
     
     res.status(response.status).json(response.data)
   } catch (err: any) {
