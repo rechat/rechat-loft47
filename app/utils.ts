@@ -119,7 +119,28 @@ export function isAgentRole(roleType: string) {
   ].includes(roleType)
 }
 
-export function decideOwningSide(deal: any) {
+export function decideRoleSide(deal: any, role: any) {
+  if (['Buyer', 'Tenant'].includes(role.role))
+    return 'sell'
+
+  if (['Seller', 'Landlord'].includes(role.role))
+    return 'list'
+
+  let side = deal.deal_type === 'Buying' ? 'sell' : 'list'
+  const enderType = deal.context.ender_type?.text
+
+  if (
+    ['OfficeDoubleEnder', 'AgentDoubleEnder'].includes(
+      enderType
+    )
+  ) {
+    side = 'double_end'
+  }
+
+  return side
+}
+
+export function decideDealSide(deal: any) {
   let side = deal.deal_type === 'Buying' ? 'sell' : 'list'
   const enderType = deal.context.ender_type?.text
 

@@ -11,8 +11,8 @@ import {
   getMainAgent,
   formatDate,
   decideRoleType,
-  isAgentRole,
-  decideOwningSide,
+  decideRoleSide,
+  decideDealSide,
   getOtherAgents,
   extractBrandIds
 } from './utils'
@@ -400,9 +400,9 @@ export default function LoftIntegration({
     if (agent.email) {
       profiles = await api.getProfiles(brokerageId, { email: agent.email }, brandIds)
     } else if (agent.phone_number) {
-      profiles = await api.getProfiles(brokerageId, { phoneNumber: agent.phone_number }, brandIds)
+      profiles = await api.getProfiles(brokerageId, { search: agent.phone_number }, brandIds)
     } else if (agent.legal_full_name) {
-      profiles = await api.getProfiles(brokerageId, { name: agent.legal_full_name }, brandIds)
+      profiles = await api.getProfiles(brokerageId, { search: agent.legal_full_name }, brandIds)
     } else {
       return null // No email, phone, or name to search by
     }
@@ -505,7 +505,7 @@ export default function LoftIntegration({
           ...(lotNumber && { lot: lotNumber }),
           ...(mlsNum && { mlsNumber: mlsNum }),
           offer: deal.deal_type === 'Buying',
-          owningSide: decideOwningSide(deal),
+          owningSide: decideDealSide(deal),
           ownerName: agent.attributes?.name || agent.name,
           ...(isLease ? leasedPrice && { sellPrice: leasedPrice } : salesPrice && { sellPrice: salesPrice }),
           teamDeal: deal.brand.brand_type === 'Team',
@@ -636,7 +636,7 @@ export default function LoftIntegration({
             attributes: {
               profileId: String(profile.attributes.id),
               role: decideRoleType(deal, role),
-              side: decideOwningSide(deal)
+              side: decideRoleSide(deal, role)
             }
           }
         }, brandIds)
@@ -653,9 +653,9 @@ export default function LoftIntegration({
     if (role.email) {
       profiles = await api.getProfiles(brokerageId, { email: role.email }, brandIds)
     } else if (role.phone_number) {
-      profiles = await api.getProfiles(brokerageId, { phoneNumber: role.phone_number }, brandIds)
+      profiles = await api.getProfiles(brokerageId, { search: role.phone_number }, brandIds)
     } else if (role.legal_full_name) {
-      profiles = await api.getProfiles(brokerageId, { name: role.legal_full_name }, brandIds)
+      profiles = await api.getProfiles(brokerageId, { search: role.legal_full_name }, brandIds)
     } else {
       return null // No email, phone, or name to search by
     }
