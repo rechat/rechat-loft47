@@ -64,14 +64,7 @@ export function formatDate(timestamp: number) {
     return null
   }
 
-  const tzOffset = -date.getTimezoneOffset()
-  const sign = tzOffset >= 0 ? '+' : '-'
-  const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0')
-  const hours = pad(tzOffset / 60)
-  const minutes = pad(tzOffset % 60)
-  const iso = date.toISOString().slice(0, -1)
-
-  return `${iso}${sign}${hours}:${minutes}`
+  return date.toISOString()
 }
 
 const buyer_agents = ['BuyerAgent', 'CoBuyerAgent']
