@@ -64,7 +64,7 @@ export function formatDate(timestamp: number) {
     return null
   }
 
-  return date.toISOString()
+  return date.toISOString().split('T')[0]
 }
 
 const buyer_agents = ['BuyerAgent', 'CoBuyerAgent']
@@ -126,18 +126,22 @@ export function decideRoleSide(deal: any, role: any) {
   if (['Seller', 'Landlord'].includes(role.role))
     return 'list'
 
-  let side = deal.deal_type === 'Buying' ? 'sell' : 'list'
   const enderType = deal.context.ender_type?.text
 
-  if (
-    ['OfficeDoubleEnder', 'AgentDoubleEnder'].includes(
-      enderType
-    )
-  ) {
-    side = 'double_end'
-  }
+  const isDoubleEnded = ['OfficeDoubleEnder', 'AgentDoubleEnder'].includes(enderType)
 
-  return side
+
+  if (isAgentRole(role.role) && isDoubleEnded)
+  return 'double_end'
+
+  if (['BuyerAgent', 'CoBuyerAgent'].includes(role.role))
+    return 'sell'
+
+  if (['SellerAgent', 'CoSellerAgent'].includes(role.role))
+    return 'list'
+
+  // For unknonwn roles, decide based on deal side. We don't know better really here.
+  return deal.deal_type === 'Buying' ? 'sell' : 'list'
 }
 
 export function decideDealSide(deal: any) {
